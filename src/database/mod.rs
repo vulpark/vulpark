@@ -2,7 +2,11 @@ mod macros;
 mod message;
 mod user;
 
-use mongodb::bson::doc;
+use futures::stream::TryStreamExt;
+use futures::TryStream;
+use mongodb::bson::{doc, DateTime};
+use mongodb::Cursor;
+use mongodb::options::FindOptions;
 use mongodb::{error::Result, options::ClientOptions, Client, Collection};
 use rand::Rng;
 use ulid::Ulid;
@@ -20,14 +24,6 @@ pub struct Database {
     db: mongodb::Database,
     messages: Collection<DatabaseMessage>,
     users: Collection<DatabaseUser>,
-}
-
-macro basic_fetch($col: expr, $id: expr) {
-    if let Some(val) = $col.find_one($id, None).await? {
-        Some(val.into())
-    } else {
-        None
-    }
 }
 
 impl Database {
@@ -54,6 +50,38 @@ impl Database {
 
     pub async fn fetch_message(&self, id: String) -> Result<Option<Message>> {
         Ok(basic_fetch!(self.messages, id!(id)))
+    }
+
+    pub async fn fetch_messages_before(
+        &self,
+        time: String,
+        max: i64,
+    ) -> Result<Vec<Message>> {
+        let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
+            return Ok(vec![]);
+        };
+
+        let Ok(messages) = to_vec(self.messages.find(before!(timestamp), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
+            return Ok(vec![]);
+        };
+
+        Ok(messages.into_iter().map(|it| it.into()).rev().collect())
+    }
+
+    pub async fn fetch_messages_after(
+        &self,
+        time: String,
+        max: i64,
+    ) -> Result<Vec<Message>> {
+        let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
+            return Ok(vec![]);
+        };
+
+        let Ok(messages) = to_vec(self.messages.find(after!(timestamp), FindOptions::builder().limit(max).build()).await?).await else {
+            return Ok(vec![]);
+        };
+
+        Ok(messages.into_iter().map(|it| it.into()).collect())
     }
 
     async fn create_user_internal(&self, username: String) -> Result<Option<DatabaseUser>> {
@@ -97,4 +125,22 @@ impl Database {
     pub async fn fetch_user_token(&self, token: String) -> Result<Option<User>> {
         Ok(basic_fetch!(self.users, eq!("token", token)))
     }
+}
+
+pub async fn to_vec<T>(
+    mut cursor: Cursor<T>
+) -> std::result::Result<Vec<T>, <mongodb::Cursor<T> as TryStream>::Error>
+where
+    Cursor<T>: TryStreamExt,
+    Cursor<T>: TryStream,
+    T: std::marker::Unpin,
+    <mongodb::Cursor<T> as TryStream>::Ok: Into<T>,
+{
+    let mut out: Vec<T> = vec![];
+
+    while let Some(val) = cursor.try_next().await? {
+        out.push(val.into());
+    }
+
+    Ok(out)
 }

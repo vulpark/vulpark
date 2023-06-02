@@ -149,11 +149,23 @@ pub async fn init() {
         .and(with_clients(clients.clone()))
         .and_then(message::create);
 
-    let message_fetch = warp::path("messages")
+    let message_fetch_single = warp::path("messages")
         .and(warp::get())
         .and(warp::path::param())
         .and(with_auth())
-        .and_then(message::fetch);
+        .and_then(message::fetch_single);
+
+    let message_fetch_before = warp::path("messages")
+        .and(warp::get())
+        .and(warp::query())
+        .and(with_auth())
+        .and_then(message::fetch_before);
+
+    let message_fetch_after = warp::path("messages")
+        .and(warp::get())
+        .and(warp::query())
+        .and(with_auth())
+        .and_then(message::fetch_after);
 
     let user_create = warp::path("users")
         .and(warp::post())
@@ -168,7 +180,9 @@ pub async fn init() {
 
     let routes = gateway
         .or(message_create)
-        .or(message_fetch)
+        .or(message_fetch_single)
+        .or(message_fetch_before)
+        .or(message_fetch_after)
         .or(user_create)
         .or(user_fetch)
         .with(warp::cors().allow_any_origin());

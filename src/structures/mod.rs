@@ -8,8 +8,13 @@ use self::{message::Message, user::User};
 #[derive(Serialize)]
 pub enum Event {
     HandshakeStart {},
-    HandshakeComplete { user: User },
-    MessageCreate { message: Message, author: Option<User> },
+    HandshakeComplete {
+        user: User,
+    },
+    MessageCreate {
+        message: Message,
+        author: Option<User>,
+    },
 }
 
 impl ToString for Event {
