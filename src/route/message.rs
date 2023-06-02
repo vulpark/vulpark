@@ -22,14 +22,14 @@ pub async fn create(
     let user = with_login!(token);
 
     let message = unwrap!(
-        Message::new(user.id.clone(), message.content.clone())
+        Message::from_user(user.id.clone(), message.content.clone())
             .insert()
             .await
     );
 
     let event = Event::MessageCreate {
         message: message.clone(),
-        author: user,
+        author: Some(user),
     };
 
     with_lock!(clients).values().for_each(|it| it.send(&event));
