@@ -8,16 +8,16 @@ use crate::database;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub id: String,
-    pub author: String,
+    pub author_id: String,
     pub content: String,
     pub created: String,
 }
 
 impl Message {
-    pub fn new(author: String, content: String) -> Self {
+    pub fn new(author_id: String, content: String) -> Self {
         Message {
             id: Ulid::new().to_string(),
-            author,
+            author_id,
             content,
             created: Utc::now().to_rfc3339(),
         }

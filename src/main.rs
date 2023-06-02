@@ -9,7 +9,6 @@ mod structures;
 
 #[tokio::main]
 async fn main() {
-    println!("Starting!");
     route::init().await
 }
 

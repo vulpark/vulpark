@@ -1,20 +1,15 @@
 pub mod message;
+pub mod user;
 
 use serde::Serialize;
 
-use self::message::Message;
+use self::{message::Message, user::User};
 
 #[derive(Serialize)]
 pub enum Event {
-    HandshakeStart { client_id: String },
-    HandshakeComplete { username: String },
-    MessageCreate { message: Message },
-}
-
-impl Event {
-    pub fn start_handshake(client_id: String) -> Self {
-        Self::HandshakeStart { client_id }
-    }
+    HandshakeStart {},
+    HandshakeComplete { user: User },
+    MessageCreate { message: Message, author: User },
 }
 
 impl ToString for Event {

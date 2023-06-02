@@ -1,36 +1,47 @@
 use serde::Deserialize;
 use warp::hyper::StatusCode;
 
-use crate::{structures::{message::Message, Event}, database, route::HttpError};
+use crate::{
+    database,
+    route::HttpError,
+    structures::{message::Message, Event},
+};
 
-use super::{Clients, Response, ResponseResult, with_lock, with_client, with_login, unwrap, check_login};
+use super::{unwrap, with_lock, with_login, Clients, Response, ResponseResult};
 
 #[derive(Debug, Deserialize)]
 pub struct MessageCreate {
     content: String,
 }
 
-pub async fn create(client_id: String, message: MessageCreate, clients: Clients) -> ResponseResult<Message> {
-    let mut lock = with_lock!(clients);
-    let client = with_client!(lock, client_id);
-    let username = with_login!(client);
+pub async fn create(
+    token: String,
+    message: MessageCreate,
+    clients: Clients,
+) -> ResponseResult<Message> {
+    let user = with_login!(token);
 
-    let message = unwrap!(Message::new(username.clone(), message.content.clone()).insert().await);
+    let message = unwrap!(
+        Message::new(user.id.clone(), message.content.clone())
+            .insert()
+            .await
+    );
 
     let event = Event::MessageCreate {
         message: message.clone(),
+        author: user,
     };
 
-    lock.values().for_each(|it| it.send(&event));
+    with_lock!(clients).values().for_each(|it| it.send(&event));
 
     Ok(warp::reply::with_status(
-        Response::Success { data: message },
+        Response::success(message),
         StatusCode::CREATED,
     ))
 }
 
-pub async fn fetch(message_id: String, client_id: String, clients: Clients) -> ResponseResult<Message> {
-    check_login!(clients, client_id);
+pub async fn fetch(message_id: String, token: String) -> ResponseResult<Message> {
+    with_login!(token);
 
     let Some(message) = unwrap!(database().await.fetch_message(message_id.clone()).await) else {
         return Ok(warp::reply::with_status(Response::Error {
@@ -40,7 +51,7 @@ pub async fn fetch(message_id: String, client_id: String, clients: Clients) -> R
     };
 
     Ok(warp::reply::with_status(
-        Response::Success { data: message },
-        StatusCode::CREATED,
+        Response::success(message),
+        StatusCode::OK,
     ))
 }
