@@ -1,4 +1,4 @@
-#![feature(decl_macro)]
+#![feature(decl_macro, let_chains)]
 
 use database::Database;
 use once_cell::sync::OnceCell;
@@ -9,6 +9,7 @@ mod structures;
 
 #[tokio::main]
 async fn main() {
+    println!("Starting!");
     route::init().await
 }
 

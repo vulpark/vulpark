@@ -6,14 +6,14 @@ use self::message::Message;
 
 #[derive(Serialize)]
 pub enum Event {
-    LoginRequest { client_id: String },
-    LoginSuccess { username: String },
+    HandshakeStart { client_id: String },
+    HandshakeComplete { username: String },
     MessageCreate { message: Message },
 }
 
 impl Event {
-    pub fn start_login(client_id: String) -> Self {
-        Self::LoginRequest { client_id }
+    pub fn start_handshake(client_id: String) -> Self {
+        Self::HandshakeStart { client_id }
     }
 }
 

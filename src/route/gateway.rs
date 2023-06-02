@@ -1,4 +1,5 @@
 use futures::{FutureExt, StreamExt};
+use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{
@@ -8,7 +9,30 @@ use warp::{
 
 use crate::structures::Event;
 
-use super::{Client, Clients};
+use super::{Client, Clients, with_lock};
+
+#[derive(Debug, Deserialize)]
+enum ReceivedEvent {
+    Handshake {
+        username: String
+    },
+}
+
+impl ReceivedEvent {
+    async fn handle(&self, client_id: String, clients: Clients) -> Option<Event> {
+        match self {
+            Self::Handshake { username } => {
+                let mut lock = with_lock!(clients);
+                let client = lock.get_mut(&client_id).unwrap();
+                if let Some(_) = client.username {
+                    return None;
+                }
+                client.username = Some(username.clone());
+                Some(Event::HandshakeComplete { username: username.clone() })
+            }
+        }
+    }
+}
 
 pub async fn gateway(ws: Ws, clients: Clients) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
@@ -30,28 +54,41 @@ async fn handle_conn(ws: WebSocket, clients: Clients, mut client: Client, id: St
     }));
 
     client.sender = Some(client_sender);
-    clients.lock().await.insert(id.clone(), client);
+    with_lock!(clients).insert(id.clone(), client);
 
     println!("{} connected", id);
 
-    let _ = &clients
-        .lock()
-        .await
+    let _ = &with_lock!(clients)
         .get(&id)
         .unwrap()
-        .send(&Event::start_login(id.clone()));
+        .send(&Event::start_handshake(id.clone()));
+
+    macro disconnect() {
+        let name = with_lock!(clients).remove(&id).unwrap().get_name();
+        println!("disconnecting {}", name);
+    }
 
     while let Some(result) = client_ws_rcv.next().await {
-        match result {
+        let msg = match result {
             Ok(msg) => msg,
-            Err(e) => {
-                let name = clients.lock().await.get(&id).unwrap().get_name();
-                eprintln!("Error receiving ws message for {}: {}", name, e);
+            Err(err) => {
+                println!("{}", err);
                 break;
             }
         };
+
+        if msg.is_text() && let Ok(event) = serde_json::from_str::<ReceivedEvent>(msg.to_str().unwrap()) {
+            println!("{:?}", event);
+            let event = event.handle(id.clone(), clients.clone()).await;
+            if let None = event {
+                continue;
+            }
+            let _ = &with_lock!(clients)
+                .get(&id)
+                .unwrap()
+                .send(&event.unwrap());
+        }
     }
 
-    let name = clients.lock().await.remove(&id).unwrap().get_name();
-    println!("{} disconnected", name);
+    disconnect!();
 }

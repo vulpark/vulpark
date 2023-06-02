@@ -1,6 +1,5 @@
 mod gateway;
 mod message;
-mod user;
 
 use serde::Serialize;
 use std::convert::Infallible;
@@ -111,13 +110,6 @@ pub async fn init() {
         .and(with_clients(clients.clone()))
         .and_then(gateway);
 
-    let login = warp::path("login")
-        .and(warp::post())
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_clients(clients.clone()))
-        .and_then(user::login);
-
     let message_create = warp::path("messages")
         .and(warp::post())
         .and(with_auth())
@@ -133,7 +125,6 @@ pub async fn init() {
         .and_then(message::fetch);
 
     let routes = gateway
-        .or(login)
         .or(message_create)
         .or(message_fetch)
         .with(warp::cors().allow_any_origin());
