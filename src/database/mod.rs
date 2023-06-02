@@ -1,9 +1,11 @@
+mod macros;
 mod message;
 
-use mongodb::{bson::doc, error::Result, options::ClientOptions, Client, Collection};
+use mongodb::{error::Result, options::ClientOptions, Client, Collection};
 
 use crate::structures::message::Message;
 
+use self::macros::*;
 use self::message::DatabaseMessage;
 
 #[allow(dead_code)]
@@ -34,7 +36,7 @@ impl Database {
     }
 
     pub async fn fetch_message(&self, id: String) -> Result<Option<Message>> {
-        let Some(message) = self.messages.find_one(doc!{"_id": id}, None).await? else {
+        let Some(message) = self.messages.find_one(id!(id), None).await? else {
             return Ok(None)
         };
         Ok(Some(message.into()))
