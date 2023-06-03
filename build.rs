@@ -14,7 +14,6 @@ fn visit_files(path: &Path, header: &str) -> Result<(), std::io::Error> {
     if path.is_file() {
         return write_header(path, header)
     }
-    println!("{:?}", path);
     for new in path.read_dir().unwrap() {
         visit_files(new?.path().as_path(), header).unwrap()
     }
