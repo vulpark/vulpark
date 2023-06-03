@@ -16,7 +16,7 @@ Don't ask for help I don't know how any of this works
 - create channels <-------- we are here
 - attach messages to channels
 - set up GitHub login / account creation
-  - GUI should probably start work around here too
+  - GUI should probably start being written around here too
 - create guilds
 - attach channels to either a guild or a user
 - more login types maybe

@@ -1,3 +1,4 @@
+mod channel;
 mod gateway;
 mod message;
 mod user;
@@ -24,6 +25,7 @@ type ResponseResult<T> = Result<WithStatus<Response<T>>, Rejection>;
 pub enum HttpError {
     InvalidLoginCredentials,
     MessageNotFound,
+    MessageContentEmpty,
     TooManyUsers,
     Other(String),
 }
@@ -33,6 +35,7 @@ impl ToString for HttpError {
         match self {
             Self::InvalidLoginCredentials => "Invalid login credentials.",
             Self::MessageNotFound => "Message not found.",
+            Self::MessageContentEmpty => "Message content is empty.",
             Self::TooManyUsers => "Too many users with the same username",
             Self::Other(msg) => msg,
         }
@@ -151,20 +154,20 @@ pub async fn init() {
 
     let message_fetch_single = warp::path("messages")
         .and(warp::get())
-        .and(warp::path::param())
         .and(with_auth())
+        .and(warp::path::param())
         .and_then(message::fetch_single);
 
     let message_fetch_before = warp::path("messages")
         .and(warp::get())
-        .and(warp::query())
         .and(with_auth())
+        .and(warp::query())
         .and_then(message::fetch_before);
 
     let message_fetch_after = warp::path("messages")
         .and(warp::get())
-        .and(warp::query())
         .and(with_auth())
+        .and(warp::query())
         .and_then(message::fetch_after);
 
     let user_create = warp::path("users")

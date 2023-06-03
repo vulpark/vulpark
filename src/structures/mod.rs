@@ -1,4 +1,6 @@
+pub mod channel;
 pub mod message;
+pub mod restricted_string;
 pub mod user;
 
 use serde::Serialize;

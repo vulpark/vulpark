@@ -16,13 +16,20 @@ pub struct MessageCreate {
 
 pub async fn create(
     token: String,
-    message: MessageCreate,
+    create: MessageCreate,
     clients: Clients,
 ) -> ResponseResult<Message> {
     let user = with_login!(token);
 
+    if create.content.is_empty() {
+        return Ok(warp::reply::with_status(Response::Error {
+            status_code: 400,
+            message: HttpError::MessageContentEmpty
+        }, StatusCode::BAD_REQUEST))
+    }
+
     let message = unwrap!(
-        Message::from_user(user.id.clone(), message.content.clone())
+        Message::from_user(user.id.clone(), create.content.clone())
             .insert()
             .await
     );
@@ -40,10 +47,10 @@ pub async fn create(
     ))
 }
 
-pub async fn fetch_single(message_id: String, token: String) -> ResponseResult<Message> {
+pub async fn fetch_single(token: String, id: String) -> ResponseResult<Message> {
     with_login!(token);
 
-    let Some(message) = unwrap!(database().await.fetch_message(message_id.clone()).await) else {
+    let Some(message) = unwrap!(database().await.fetch_message(id.clone()).await) else {
         return Ok(warp::reply::with_status(Response::Error {
             status_code: 404,
             message: HttpError::MessageNotFound
@@ -59,21 +66,26 @@ pub async fn fetch_single(message_id: String, token: String) -> ResponseResult<M
 #[derive(Debug, Deserialize)]
 pub struct FetchBefore {
     before: String,
-    max: Option<i64>
+    max: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FetchAfter {
     after: String,
-    max: Option<i64>
+    max: Option<i64>,
 }
 
-pub async fn fetch_before(query: FetchBefore, token: String) -> ResponseResult<Vec<Message>> {
+pub async fn fetch_before(token: String, query: FetchBefore) -> ResponseResult<Vec<Message>> {
     with_login!(token);
 
     let max = query.max.unwrap_or(25).min(25);
 
-    let messages = unwrap!(database().await.fetch_messages_before(query.before.clone(), max).await);
+    let messages = unwrap!(
+        database()
+            .await
+            .fetch_messages_before(query.before.clone(), max)
+            .await
+    );
 
     Ok(warp::reply::with_status(
         Response::success(messages),
@@ -81,12 +93,17 @@ pub async fn fetch_before(query: FetchBefore, token: String) -> ResponseResult<V
     ))
 }
 
-pub async fn fetch_after(query: FetchAfter, token: String) -> ResponseResult<Vec<Message>> {
+pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec<Message>> {
     with_login!(token);
 
     let max = query.max.unwrap_or(25).min(25);
 
-    let messages = unwrap!(database().await.fetch_messages_after(query.after.clone(), max).await);
+    let messages = unwrap!(
+        database()
+            .await
+            .fetch_messages_after(query.after.clone(), max)
+            .await
+    );
 
     Ok(warp::reply::with_status(
         Response::success(messages),
