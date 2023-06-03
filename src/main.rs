@@ -2,14 +2,36 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-#![feature(decl_macro, let_chains)]
+#![feature(
+    associated_type_bounds,
+    async_closure,
+    decl_macro,
+    fn_traits,
+    let_chains
+)]
 
 use database::Database;
+use futures::Future;
 use once_cell::sync::OnceCell;
 
 mod database;
 mod route;
 mod structures;
+
+async fn map_async<I, O, F>(v: Vec<I>, f: fn(I) -> F) -> Vec<O>
+where
+    I: Send,
+    O: Send,
+    F: Future<Output = O> + Send,
+{
+    let mut out = vec![];
+
+    for i in v.into_iter() {
+        out.push(f.call((i,)).await);
+    }
+
+    out
+}
 
 #[tokio::main]
 async fn main() {

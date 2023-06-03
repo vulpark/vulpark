@@ -3,13 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use mongodb::bson::{doc, DateTime};
-use serde::{Deserialize, Serialize};
-use mongodb::options::FindOptions;
 use mongodb::error::Result;
+use mongodb::options::FindOptions;
+use serde::{Deserialize, Serialize};
 
 use crate::structures::message::Message;
 
-use super::{Database, to_vec, macros::*};
+use super::{macros::*, to_vec, Database};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DatabaseMessage {
@@ -53,11 +53,7 @@ impl Database {
         Ok(basic_fetch!(self.messages, id!(id)))
     }
 
-    pub async fn fetch_messages_before(
-        &self,
-        time: String,
-        max: i64,
-    ) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_before(&self, time: String, max: i64) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
@@ -66,14 +62,10 @@ impl Database {
             return Ok(vec![]);
         };
 
-        Ok(messages.into_iter().map(|it| it.into()).rev().collect())
+        Ok(messages.into_iter().map(Into::into).rev().collect())
     }
 
-    pub async fn fetch_messages_after(
-        &self,
-        time: String,
-        max: i64,
-    ) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_after(&self, time: String, max: i64) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
@@ -82,6 +74,6 @@ impl Database {
             return Ok(vec![]);
         };
 
-        Ok(messages.into_iter().map(|it| it.into()).collect())
+        Ok(messages.into_iter().map(Into::into).collect())
     }
 }
