@@ -12,7 +12,8 @@
 
 use database::Database;
 use futures::Future;
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
+use ulid::Ulid;
 
 mod database;
 mod route;
@@ -38,7 +39,11 @@ async fn main() {
     route::init().await
 }
 
-static DATABASE: OnceCell<Database> = OnceCell::new();
+static DATABASE: OnceLock<Database> = OnceLock::new();
+
+pub fn generate_ulid() -> String {
+    Ulid::new().to_string()
+}
 
 pub async fn database() -> &'static Database {
     if let Some(database) = DATABASE.get() {

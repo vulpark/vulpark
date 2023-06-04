@@ -9,6 +9,7 @@ mod user;
 
 use serde::Serialize;
 use std::convert::Infallible;
+use std::ops::{Deref, DerefMut};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, Mutex};
 use ulid::Ulid;
@@ -28,7 +29,7 @@ type ResponseResult<T> = Result<WithStatus<Response<T>>, Rejection>;
 #[derive(Debug)]
 pub enum HttpError {
     InvalidLoginCredentials,
-    MessageNotFound,
+    NotFound(String),
     MessageContentEmpty,
     TooManyUsers,
     Other(String),
@@ -37,13 +38,12 @@ pub enum HttpError {
 impl ToString for HttpError {
     fn to_string(&self) -> String {
         match self {
-            Self::InvalidLoginCredentials => "Invalid login credentials.",
-            Self::MessageNotFound => "Message not found.",
-            Self::MessageContentEmpty => "Message content is empty.",
-            Self::TooManyUsers => "Too many users with the same username",
-            Self::Other(msg) => msg,
+            Self::InvalidLoginCredentials => "Invalid login credentials.".to_string(),
+            Self::NotFound(name) => format!("{name} not found."),
+            Self::MessageContentEmpty => "Message content is empty.".to_string(),
+            Self::TooManyUsers => "Too many users with the same username".to_string(),
+            Self::Other(msg) => msg.to_string(),
         }
-        .into()
     }
 }
 
@@ -139,10 +139,32 @@ impl Client {
     // }
 }
 
-pub type Clients = Arc<Mutex<HashMap<String, Client>>>;
+pub struct Clients(HashMap<String, Client>);
+
+impl Clients {
+    pub fn dispatch_event(&self, event: Event) {
+        self.values().for_each(|client| client.send(&event))
+    }
+}
+
+impl Deref for Clients {
+    type Target = HashMap<String, Client>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Clients {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+pub type ClientHolder = Arc<Mutex<Clients>>;
 
 pub async fn init() {
-    let clients: Clients = Arc::new(Mutex::new(HashMap::new()));
+    let clients: ClientHolder = Arc::new(Mutex::new(Clients(HashMap::new())));
 
     let gateway = warp::path("gateway")
         .and(warp::ws())
@@ -174,6 +196,19 @@ pub async fn init() {
         .and(warp::query())
         .and_then(message::fetch_after);
 
+    let channel_create = warp::path("channels")
+        .and(warp::post())
+        .and(with_auth())
+        .and(warp::body::json())
+        .and(with_clients(clients.clone()))
+        .and_then(channel::create);
+
+    let channel_fetch = warp::path("messages")
+        .and(warp::get())
+        .and(with_auth())
+        .and(warp::path::param())
+        .and_then(channel::fetch);
+
     let user_create = warp::path("users")
         .and(warp::post())
         .and(warp::body::json())
@@ -190,6 +225,8 @@ pub async fn init() {
         .or(message_fetch_single)
         .or(message_fetch_before)
         .or(message_fetch_after)
+        .or(channel_create)
+        .or(channel_fetch)
         .or(user_create)
         .or(user_fetch)
         .with(warp::cors().allow_any_origin());
@@ -201,12 +238,31 @@ fn with_auth() -> impl warp::Filter<Extract = (String,), Error = Rejection> + Co
     warp::header("Authorization")
 }
 
-fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error = Infallible> + Clone {
+fn with_clients(
+    clients: ClientHolder,
+) -> impl Filter<Extract = (ClientHolder,), Error = Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
 pub macro with_lock($clients: expr) {
     $clients.lock().await
+}
+
+pub macro not_found($name: expr) {
+    Ok(warp::reply::with_status(
+        Response::Error {
+            status_code: 404,
+            message: HttpError::NotFound($name.to_string()),
+        },
+        StatusCode::NOT_FOUND,
+    ))
+}
+
+pub macro ok($data: expr) {
+    Ok(warp::reply::with_status(
+        Response::success($data),
+        StatusCode::OK,
+    ))
 }
 
 pub macro with_login($token: expr) {

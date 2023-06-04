@@ -13,7 +13,7 @@ use warp::{
 
 use crate::structures::Event;
 
-use super::{with_lock, Client, Clients};
+use super::{with_lock, Client, ClientHolder};
 
 #[derive(Debug, Deserialize)]
 enum ReceivedEvent {
@@ -21,7 +21,7 @@ enum ReceivedEvent {
 }
 
 impl ReceivedEvent {
-    async fn handle(&self, client_id: String, clients: Clients) -> Option<Event> {
+    async fn handle(&self, client_id: String, clients: ClientHolder) -> Option<Event> {
         match self {
             Self::Handshake { token } => {
                 let mut lock = with_lock!(clients);
@@ -36,7 +36,7 @@ impl ReceivedEvent {
     }
 }
 
-pub async fn gateway(ws: Ws, clients: Clients) -> Result<impl Reply, Rejection> {
+pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
         let client = Client::empty();
         let id = client.id.clone();
@@ -44,7 +44,7 @@ pub async fn gateway(ws: Ws, clients: Clients) -> Result<impl Reply, Rejection> 
     }))
 }
 
-async fn handle_conn(ws: WebSocket, clients: Clients, mut client: Client, id: String) {
+async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client, id: String) {
     let (client_ws_sender, mut client_ws_rcv) = ws.split();
     let (client_sender, client_rcv) = mpsc::unbounded_channel();
 

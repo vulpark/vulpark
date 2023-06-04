@@ -43,9 +43,7 @@ impl Into<Message> for DatabaseMessage {
 
 impl Database {
     pub async fn create_message(&self, message: Message) -> Result<Message> {
-        self.messages
-            .insert_one(DatabaseMessage::from(&message), None)
-            .await?;
+        basic_create!(self.messages, DatabaseMessage::from, message)?;
         Ok(message)
     }
 

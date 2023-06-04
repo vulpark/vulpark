@@ -5,13 +5,9 @@
 use serde::{Deserialize, Serialize};
 use warp::hyper::StatusCode;
 
-use crate::{
-    database,
-    route::{expect, with_login, HttpError},
-    structures::user::User,
-};
+use crate::{database, structures::user::User};
 
-use super::{unwrap, Response, ResponseResult};
+use super::{expect, not_found, ok, unwrap, with_login, HttpError, ResponseResult};
 
 #[derive(Debug, Deserialize)]
 pub struct UserCreateRequest {
@@ -40,23 +36,15 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserCreateRespons
         HttpError::TooManyUsers
     );
 
-    Ok(warp::reply::with_status(
-        Response::success(user.into()),
-        StatusCode::CREATED,
-    ))
+    ok!(user.into())
 }
 
 pub async fn fetch(user_id: String, token: String) -> ResponseResult<User> {
     with_login!(token);
 
-    let user = expect!(
-        unwrap!(database().await.fetch_user(user_id.clone()).await),
-        StatusCode::INTERNAL_SERVER_ERROR,
-        HttpError::TooManyUsers
-    );
+    let Some(user) = unwrap!(database().await.fetch_user(user_id.clone()).await) else {
+        return not_found!("User")
+    };
 
-    Ok(warp::reply::with_status(
-        Response::success(user.into()),
-        StatusCode::OK,
-    ))
+    ok!(user.into())
 }

@@ -7,11 +7,12 @@ use warp::hyper::StatusCode;
 
 use crate::{
     database, map_async,
-    route::HttpError,
     structures::{message::Message, user::User, Event},
 };
 
-use super::{unwrap, with_lock, with_login, Clients, Response, ResponseResult};
+use super::{
+    not_found, ok, unwrap, with_lock, with_login, ClientHolder, HttpError, Response, ResponseResult,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct MessageCreate {
@@ -55,7 +56,7 @@ impl MessageResponse {
 pub async fn create(
     token: String,
     create: MessageCreate,
-    clients: Clients,
+    clients: ClientHolder,
 ) -> ResponseResult<MessageResponse> {
     let user = with_login!(token);
 
@@ -80,28 +81,19 @@ pub async fn create(
         author: Some(user.clone()),
     };
 
-    with_lock!(clients).values().for_each(|it| it.send(&event));
+    with_lock!(clients).dispatch_event(event);
 
-    Ok(warp::reply::with_status(
-        Response::success(MessageResponse::from(message, user)),
-        StatusCode::CREATED,
-    ))
+    ok!(MessageResponse::from(message, user))
 }
 
 pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
     with_login!(token);
 
     let Some(message) = unwrap!(database().await.fetch_message(id.clone()).await) else {
-        return Ok(warp::reply::with_status(Response::Error {
-            status_code: 404,
-            message: HttpError::MessageNotFound
-        }, StatusCode::NOT_FOUND))
+        return not_found!("Message")
     };
 
-    Ok(warp::reply::with_status(
-        Response::success(MessageResponse::from_message(message).await),
-        StatusCode::OK,
-    ))
+    ok!(MessageResponse::from_message(message).await)
 }
 
 #[derive(Debug, Deserialize)]
@@ -131,10 +123,7 @@ pub async fn fetch_before(
             .await
     );
 
-    Ok(warp::reply::with_status(
-        Response::success(map_async(messages, MessageResponse::from_message).await),
-        StatusCode::OK,
-    ))
+    ok!(map_async(messages, MessageResponse::from_message).await)
 }
 
 pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec<MessageResponse>> {
@@ -149,8 +138,5 @@ pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec
             .await
     );
 
-    Ok(warp::reply::with_status(
-        Response::success(map_async(messages, MessageResponse::from_message).await),
-        StatusCode::OK,
-    ))
+    ok!(map_async(messages, MessageResponse::from_message).await)
 }

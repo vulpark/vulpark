@@ -9,7 +9,7 @@ pub mod user;
 
 use serde::Serialize;
 
-use self::{message::Message, user::User};
+use self::{channel::Channel, message::Message, user::User};
 
 #[derive(Serialize)]
 pub enum Event {
@@ -20,6 +20,10 @@ pub enum Event {
     MessageCreate {
         message: Message,
         author: Option<User>,
+    },
+    ChannelCreate {
+        channel: Channel,
+        creator: User,
     },
 }
 

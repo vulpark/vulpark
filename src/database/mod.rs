@@ -12,6 +12,7 @@ use futures::TryStream;
 use mongodb::Cursor;
 use mongodb::{error::Result, options::ClientOptions, Client, Collection};
 
+use self::channel::DatabaseChannel;
 use self::message::DatabaseMessage;
 use self::user::DatabaseUser;
 
@@ -20,6 +21,7 @@ pub struct Database {
     client: Client,
     db: mongodb::Database,
     messages: Collection<DatabaseMessage>,
+    channels: Collection<DatabaseChannel>,
     users: Collection<DatabaseUser>,
 }
 
@@ -29,11 +31,13 @@ impl Database {
         let client = Client::with_options(client_options)?;
         let db = client.database("rschat");
         let messages = db.collection("messages");
+        let channels = db.collection("channels");
         let users = db.collection("users");
         Ok(Self {
             client,
             db,
             messages,
+            channels,
             users,
         })
     }
