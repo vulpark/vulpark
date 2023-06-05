@@ -13,9 +13,9 @@ Don't ask for help I don't know how any of this works
 - ~~store messages in database~~
 - ~~access sent messages from endpoint~~
 - ~~users in database~~
-- create channels <-------- we are here
-- attach messages to channels
-- set up GitHub login / account creation
+- ~~create channels~~
+- ~~attach messages to channels~~
+- set up GitHub login / account creation <-------- we are here
   - GUI should probably start being written around here too
 - create guilds
 - attach channels to either a guild or a user
