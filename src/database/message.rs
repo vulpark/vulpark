@@ -14,6 +14,7 @@ use super::{macros::*, to_vec, Database};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DatabaseMessage {
     pub _id: String,
+    pub channel_id: String,
     pub author_id: Option<String>,
     pub content: String,
     pub created: DateTime,
@@ -23,6 +24,7 @@ impl From<&Message> for DatabaseMessage {
     fn from(value: &Message) -> Self {
         Self {
             _id: value.id.to_string(),
+            channel_id: value.channel_id.clone(),
             author_id: value.author_id.clone(),
             content: value.content.to_string(),
             created: DateTime::parse_rfc3339_str(value.created.clone()).unwrap(),
@@ -34,6 +36,7 @@ impl Into<Message> for DatabaseMessage {
     fn into(self) -> Message {
         Message {
             id: self._id,
+            channel_id: self.channel_id,
             author_id: self.author_id,
             content: self.content,
             created: self.created.try_to_rfc3339_string().unwrap(),
@@ -51,24 +54,24 @@ impl Database {
         Ok(basic_fetch!(self.messages, id!(id)))
     }
 
-    pub async fn fetch_messages_before(&self, time: String, max: i64) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_before(&self, channel_id: String, time: String, max: i64) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
 
-        let Ok(messages) = to_vec(self.messages.find(before!(timestamp), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
+        let Ok(messages) = to_vec(self.messages.find(before!(timestamp, "channel_id", channel_id), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
             return Ok(vec![]);
         };
 
         Ok(messages.into_iter().map(Into::into).rev().collect())
     }
 
-    pub async fn fetch_messages_after(&self, time: String, max: i64) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_after(&self, channel_id: String, time: String, max: i64) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
 
-        let Ok(messages) = to_vec(self.messages.find(after!(timestamp), FindOptions::builder().limit(max).build()).await?).await else {
+        let Ok(messages) = to_vec(self.messages.find(after!(timestamp, "channel_id", channel_id), FindOptions::builder().limit(max).build()).await?).await else {
             return Ok(vec![]);
         };
 

@@ -16,6 +16,7 @@ use super::{
 
 #[derive(Debug, Deserialize)]
 pub struct MessageCreate {
+    channel_id: String,
     content: String,
 }
 
@@ -70,8 +71,12 @@ pub async fn create(
         ));
     }
 
+    if let None = unwrap!(database().await.fetch_channel(create.channel_id.clone()).await) {
+        return not_found!("Channel")
+    };
+
     let message = unwrap!(
-        Message::from_user(user.id.clone(), create.content.clone())
+        Message::new(create.channel_id.clone(), user.id.clone(), create.content.clone())
             .insert()
             .await
     );
@@ -98,12 +103,14 @@ pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageRe
 
 #[derive(Debug, Deserialize)]
 pub struct FetchBefore {
+    channel: String,
     before: String,
     max: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FetchAfter {
+    channel: String,
     after: String,
     max: Option<i64>,
 }
@@ -119,7 +126,7 @@ pub async fn fetch_before(
     let messages = unwrap!(
         database()
             .await
-            .fetch_messages_before(query.before.clone(), max)
+            .fetch_messages_before(query.channel.clone(), query.before.clone(), max)
             .await
     );
 
@@ -134,7 +141,7 @@ pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec
     let messages = unwrap!(
         database()
             .await
-            .fetch_messages_after(query.after.clone(), max)
+            .fetch_messages_after(query.channel.clone(), query.after.clone(), max)
             .await
     );
 

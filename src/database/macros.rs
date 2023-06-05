@@ -22,10 +22,10 @@ pub(super) macro id($id: expr) {
     eq!("_id", $id)
 }
 
-pub(super) macro before($time: expr) {
-    mongodb::bson::doc! {"created": {"$lt": $time}}
+pub(super) macro before($time: expr, $id_name: expr, $id: expr) {
+    mongodb::bson::doc! {"created": {"$lt": $time}, $id_name: $id}
 }
 
-pub(super) macro after($time: expr) {
-    mongodb::bson::doc! {"created": {"$gt": $time}}
+pub(super) macro after($time: expr, $id_name: expr, $id: expr) {
+    mongodb::bson::doc! {"created": {"$gt": $time}, $id_name: $id}
 }
