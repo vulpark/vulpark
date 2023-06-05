@@ -1,5 +1,5 @@
-# rschat
-That's just the working title atm.
+# vulpark
+A vulpine gathering.
 
 This is HEAVILY work in progress
 
