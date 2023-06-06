@@ -5,7 +5,7 @@
 use mongodb::error::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::structures::{channel::Channel, restricted_string::RestrictedString};
+use crate::structures::{channel::{Channel, ChannelLocation}, restricted_string::RestrictedString};
 
 use super::{macros::*, Database};
 
@@ -13,6 +13,7 @@ use super::{macros::*, Database};
 pub struct DatabaseChannel {
     pub _id: String,
     pub name: RestrictedString,
+    pub location: ChannelLocation
 }
 
 impl From<&Channel> for DatabaseChannel {
@@ -20,6 +21,7 @@ impl From<&Channel> for DatabaseChannel {
         Self {
             _id: value.id.to_string(),
             name: value.name.clone(),
+            location: value.location.clone(),
         }
     }
 }
@@ -29,6 +31,7 @@ impl Into<Channel> for DatabaseChannel {
         Channel {
             id: self._id,
             name: self.name,
+            location: self.location,
         }
     }
 }
