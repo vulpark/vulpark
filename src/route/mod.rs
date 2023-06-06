@@ -8,6 +8,7 @@ mod message;
 mod user;
 
 use serde::Serialize;
+use serde::ser::SerializeStruct;
 use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 use std::{collections::HashMap, sync::Arc};
@@ -56,7 +57,7 @@ impl Serialize for HttpError {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
 pub enum Response<T>
 where
     T: Serialize,
@@ -68,6 +69,22 @@ where
     Success {
         data: T,
     },
+}
+
+impl <T> Serialize for Response<T> where T : Serialize {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        match self {
+            Self::Error {status_code, message} => {
+                let mut err = serializer.serialize_struct("Error", 2)?;
+                err.serialize_field("status_code", status_code)?;
+                err.serialize_field("message", message)?;
+                err.end()
+            },
+            Self::Success { data } => data.serialize(serializer)
+        }
+    }
 }
 
 impl<T> Response<T>

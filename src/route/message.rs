@@ -7,7 +7,7 @@ use warp::hyper::StatusCode;
 
 use crate::{
     database, map_async,
-    structures::{message::Message, user::User, Event},
+    structures::{message::Message, user::User, Event, channel::Channel},
 };
 
 use super::{
@@ -23,33 +23,33 @@ pub struct MessageCreate {
 #[derive(Debug, Clone, Serialize)]
 pub struct MessageResponse {
     message: Message,
+    channel: Channel,
     author: Option<User>,
 }
 
 impl MessageResponse {
     async fn from_message(message: Message) -> Self {
         let Some(id) = &message.author_id else {
-            return Self::none(message);
+            return Self::none(message).await;
         };
 
         let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
-            return Self::none(message);
+            return Self::none(message).await;
         };
 
-        Self::from(message, user)
+        Self::from(message, Some(user)).await
     }
 
-    fn none(message: Message) -> Self {
-        MessageResponse {
-            message,
-            author: None,
-        }
+    async fn none(message: Message) -> Self {
+        Self::from(message, None).await
     }
 
-    fn from(message: Message, author: User) -> Self {
+    async fn from(message: Message, author: Option<User>) -> Self {
+        let channel = database().await.fetch_channel(message.channel_id.clone()).await.unwrap().unwrap();
         MessageResponse {
             message,
-            author: Some(author),
+            channel,
+            author,
         }
     }
 }
@@ -88,7 +88,7 @@ pub async fn create(
 
     with_lock!(clients).dispatch_event(event);
 
-    ok!(MessageResponse::from(message, user))
+    ok!(MessageResponse::from(message, Some(user)).await)
 }
 
 pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
