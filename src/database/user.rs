@@ -25,7 +25,7 @@ impl Into<User> for DatabaseUser {
         User {
             id: self._id,
             username: self.username,
-            discriminator: self.discriminator.to_string(),
+            discriminator: self.discriminator,
         }
     }
 }
