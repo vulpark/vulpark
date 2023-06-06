@@ -9,6 +9,7 @@ mod user;
 
 use serde::Serialize;
 use serde::ser::SerializeStruct;
+use warp::reject::{MissingHeader, MethodNotAllowed};
 use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 use std::{collections::HashMap, sync::Arc};
@@ -16,7 +17,7 @@ use tokio::sync::{mpsc, Mutex};
 use ulid::Ulid;
 use warp::hyper::StatusCode;
 use warp::reply::WithStatus;
-use warp::ws::Message;
+use warp::ws::{Message, MissingConnectionUpgrade};
 use warp::{Filter, Rejection, Reply};
 
 use crate::database;
@@ -33,7 +34,7 @@ pub enum HttpError {
     NotFound(String),
     MessageContentEmpty,
     TooManyUsers,
-    Other(String),
+    Other(String)
 }
 
 impl ToString for HttpError {
@@ -246,9 +247,26 @@ pub async fn init() {
         .or(channel_fetch)
         .or(user_create)
         .or(user_fetch)
+        .recover(recover)
         .with(warp::cors().allow_any_origin());
 
     warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+}
+
+async fn recover(rejection: Rejection) -> ResponseResult<()> {
+    if rejection.is_not_found() {
+        return not_found!("Route")
+    }
+    if let Some(header) = rejection.find::<MissingHeader>() {
+        return err!(HttpError::Other(format!("Missing header: {}", header.name())), StatusCode::BAD_REQUEST)
+    }
+    if let Some(_) = rejection.find::<MethodNotAllowed>() {
+        return err!(HttpError::Other("Method not allowed".to_string()), StatusCode::METHOD_NOT_ALLOWED)
+    }
+    if let Some(_) = rejection.find::<MissingConnectionUpgrade>() {
+        return err!(HttpError::Other("Missing websocket upgrade".to_string()), StatusCode::METHOD_NOT_ALLOWED)
+    }
+    Err(rejection)
 }
 
 fn with_auth() -> impl warp::Filter<Extract = (String,), Error = Rejection> + Copy {
@@ -265,21 +283,25 @@ pub macro with_lock($clients: expr) {
     $clients.lock().await
 }
 
-pub macro not_found($name: expr) {
-    Ok(warp::reply::with_status(
-        Response::Error {
-            status_code: 404,
-            message: HttpError::NotFound($name.to_string()),
-        },
-        StatusCode::NOT_FOUND,
-    ))
-}
-
 pub macro ok($data: expr) {
     Ok(warp::reply::with_status(
         Response::success($data),
         StatusCode::OK,
     ))
+}
+
+pub macro err($message: expr, $status: expr) {
+    Ok(warp::reply::with_status(
+        Response::Error{
+            status_code: $status.as_u16(),
+            message: $message
+        },
+        $status
+    ))
+}
+
+pub macro not_found($name: expr) {
+    err!(HttpError::NotFound($name.to_string()), StatusCode::NOT_FOUND)
 }
 
 pub macro with_login($token: expr) {
@@ -294,13 +316,7 @@ pub macro unwrap($req: expr) {
     if let Ok(val) = $req {
         val
     } else {
-        return Ok(warp::reply::with_status(
-            Response::Error {
-                status_code: 500,
-                message: HttpError::Other($req.unwrap_err().to_string()),
-            },
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ));
+        return err!(HttpError::Other($req.unwrap_err().to_string()), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }
 
@@ -308,12 +324,6 @@ pub macro expect($val: expr, $status: expr, $message: expr) {
     if let Some(val) = $val {
         val
     } else {
-        return Ok(warp::reply::with_status(
-            Response::Error {
-                status_code: $status.as_u16(),
-                message: $message,
-            },
-            $status,
-        ));
+        return err!($message, $status);
     }
 }
