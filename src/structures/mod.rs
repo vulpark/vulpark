@@ -20,6 +20,7 @@ pub enum Event {
     MessageCreate {
         message: Message,
         author: Option<User>,
+        channel: Channel,
     },
     ChannelCreate {
         channel: Channel,

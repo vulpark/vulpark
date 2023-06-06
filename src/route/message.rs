@@ -71,7 +71,7 @@ pub async fn create(
         ));
     }
 
-    if let None = unwrap!(database().await.fetch_channel(create.channel_id.clone()).await) {
+    let Some(channel) = unwrap!(database().await.fetch_channel(create.channel_id.clone()).await) else {
         return not_found!("Channel")
     };
 
@@ -84,6 +84,7 @@ pub async fn create(
     let event = Event::MessageCreate {
         message: message.clone(),
         author: Some(user.clone()),
+        channel
     };
 
     with_lock!(clients).dispatch_event(event);
