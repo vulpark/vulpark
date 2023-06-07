@@ -10,11 +10,11 @@ use warp::{
     Rejection, Reply,
 };
 
-use crate::structures::{
+use crate::{structures::{
     client::{Client, ClientHolder},
     event::Event,
     event::ReceivedEvent,
-};
+}, with_lock};
 
 pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
@@ -41,7 +41,7 @@ async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client) {
         };
 
         if msg.is_text() && let Ok(event) = serde_json::from_str::<ReceivedEvent>(msg.to_str().unwrap()) {
-            let event = event.handle(client.clone(), &clients).await;
+            let event = handle_event(&event, client.clone(), &clients).await;
             if let None = event {
                 continue;
             }
@@ -50,4 +50,24 @@ async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client) {
     }
 
     let _ = client.remove_from(clients);
+}
+
+async fn handle_event(event: &ReceivedEvent, mut client: Client, clients: &ClientHolder) -> Option<Event> {
+    match event {
+        ReceivedEvent::Handshake { token } => {
+            if let Some(_) = client.user_id {
+                return None;
+            }
+            let user = client.set_user(token.clone()).await?;
+            {
+                let mut lock = with_lock!(clients);
+                if let Some(clients) = lock.get_mut(&user.id) {
+                    clients.push(client.clone());
+                } else {
+                    lock.insert(user.id.clone(), vec![client.clone()]);
+                };
+            }
+            Some(Event::HandshakeComplete { user })
+        }
+    }
 }
