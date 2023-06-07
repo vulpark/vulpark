@@ -118,7 +118,10 @@ async fn recover(rejection: Rejection) -> ResponseResult<()> {
             StatusCode::METHOD_NOT_ALLOWED
         );
     }
-    Err(rejection)
+    err!(
+        HttpError::Other(format!("{:?}", rejection)),
+        StatusCode::INTERNAL_SERVER_ERROR
+    )
 }
 
 fn with_auth() -> impl warp::Filter<Extract = (String,), Error = Rejection> + Copy {
