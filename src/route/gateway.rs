@@ -21,15 +21,21 @@ enum ReceivedEvent {
 }
 
 impl ReceivedEvent {
-    async fn handle(&self, client_id: String, clients: ClientHolder) -> Option<Event> {
+    async fn handle(&self, mut client: Client, clients: &ClientHolder) -> Option<Event> {
         match self {
             Self::Handshake { token } => {
-                let mut lock = with_lock!(clients);
-                let client = lock.get_mut(&client_id).unwrap();
-                if let Some(_) = client.token {
+                if let Some(_) = client.user_id {
                     return None;
                 }
                 let user = client.set_user(token.clone()).await?;
+                {
+                    let mut lock = with_lock!(clients);
+                    if let Some(clients) = lock.get_mut(&user.id) {
+                        clients.push(client.clone());
+                    } else {
+                        lock.insert(user.id.clone(), vec![client.clone()]);
+                    };
+                }
                 Some(Event::HandshakeComplete { user })
             }
         }
@@ -39,12 +45,11 @@ impl ReceivedEvent {
 pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
         let client = Client::empty();
-        let id = client.id.clone();
-        handle_conn(socket, clients, client, id)
+        handle_conn(socket, clients, client)
     }))
 }
 
-async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client, id: String) {
+async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client) {
     let (client_ws_sender, mut client_ws_rcv) = ws.split();
     let (client_sender, client_rcv) = mpsc::unbounded_channel();
 
@@ -52,16 +57,8 @@ async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client, i
     tokio::task::spawn(client_rcv.forward(client_ws_sender));
 
     client.sender = Some(client_sender);
-    with_lock!(clients).insert(id.clone(), client);
 
-    let _ = &with_lock!(clients)
-        .get(&id)
-        .unwrap()
-        .send(&Event::HandshakeStart {});
-
-    macro disconnect() {
-        let _ = with_lock!(clients).remove(&id);
-    }
+    client.send(&Event::HandshakeStart {});
 
     while let Some(result) = client_ws_rcv.next().await {
         let msg = match result {
@@ -70,16 +67,13 @@ async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client, i
         };
 
         if msg.is_text() && let Ok(event) = serde_json::from_str::<ReceivedEvent>(msg.to_str().unwrap()) {
-            let event = event.handle(id.clone(), clients.clone()).await;
+            let event = event.handle(client.clone(), &clients).await;
             if let None = event {
                 continue;
             }
-            let _ = &with_lock!(clients)
-                .get(&id)
-                .unwrap()
-                .send(&event.unwrap());
+            let _ = client.send(&event.unwrap());
         }
     }
 
-    disconnect!();
+    let _ = client.remove_from(clients);
 }

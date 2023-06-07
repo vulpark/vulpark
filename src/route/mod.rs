@@ -2,20 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+mod auth;
 mod channel;
 mod gateway;
 mod message;
 mod user;
 
-use serde::Serialize;
 use serde::ser::SerializeStruct;
-use warp::reject::{MissingHeader, MethodNotAllowed};
+use serde::Serialize;
 use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, Mutex};
 use ulid::Ulid;
 use warp::hyper::StatusCode;
+use warp::reject::{MethodNotAllowed, MissingHeader};
 use warp::reply::WithStatus;
 use warp::ws::{Message, MissingConnectionUpgrade};
 use warp::{Filter, Rejection, Reply};
@@ -33,8 +34,9 @@ pub enum HttpError {
     InvalidLoginCredentials,
     NotFound(String),
     MessageContentEmpty,
+    ChannelAccessDenied,
     TooManyUsers,
-    Other(String)
+    Other(String),
 }
 
 impl ToString for HttpError {
@@ -43,6 +45,7 @@ impl ToString for HttpError {
             Self::InvalidLoginCredentials => "Invalid login credentials.".to_string(),
             Self::NotFound(name) => format!("{name} not found."),
             Self::MessageContentEmpty => "Message content is empty.".to_string(),
+            Self::ChannelAccessDenied => "Channel access is denied".to_string(),
             Self::TooManyUsers => "Too many users with the same username".to_string(),
             Self::Other(msg) => msg.to_string(),
         }
@@ -72,18 +75,25 @@ where
     },
 }
 
-impl <T> Serialize for Response<T> where T : Serialize {
+impl<T> Serialize for Response<T>
+where
+    T: Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         match self {
-            Self::Error {status_code, message} => {
+            Self::Error {
+                status_code,
+                message,
+            } => {
                 let mut err = serializer.serialize_struct("Error", 2)?;
                 err.serialize_field("status_code", status_code)?;
                 err.serialize_field("message", message)?;
                 err.end()
-            },
-            Self::Success { data } => data.serialize(serializer)
+            }
+            Self::Success { data } => data.serialize(serializer),
         }
     }
 }
@@ -119,7 +129,7 @@ where
 pub struct Client {
     pub id: String,
     pub sender: Option<mpsc::UnboundedSender<std::result::Result<Message, warp::Error>>>,
-    pub token: Option<String>,
+    pub user_id: Option<String>,
 }
 
 impl Client {
@@ -127,13 +137,13 @@ impl Client {
         Client {
             id: Ulid::new().to_string(),
             sender: None,
-            token: None,
+            user_id: None,
         }
     }
 
-    pub fn send(&self, message: &Event) {
+    pub fn send(&self, event: &Event) {
         let Some(ref sender) = self.sender else { return };
-        let _ = sender.send(Ok(Message::text(message.to_string())));
+        let _ = sender.send(Ok(Message::text(event.to_string())));
     }
 
     pub async fn set_user(&mut self, token: String) -> Option<User> {
@@ -141,8 +151,19 @@ impl Client {
         let Ok(user) = user else {
             return None;
         };
-        self.token = Some(token);
-        user
+        let user = user?;
+
+        self.user_id = Some(user.id.clone());
+        Some(user)
+    }
+
+    pub async fn remove_from(&self, clients: ClientHolder) -> Option<()> {
+        let mut lock = with_lock!(clients);
+        let id = self.user_id.clone()?;
+        let clients = lock.get_mut(&id)?;
+        let index = clients.into_iter().position(|it| it.id == self.id)?;
+        clients.remove(index);
+        Some(())
     }
 
     // pub async fn get_user(&self) -> Option<User> {
@@ -157,16 +178,29 @@ impl Client {
     // }
 }
 
-pub struct Clients(HashMap<String, Client>);
+pub struct Clients(HashMap<String, Vec<Client>>);
 
 impl Clients {
-    pub fn dispatch_event(&self, event: Event) {
-        self.values().for_each(|client| client.send(&event))
+    pub fn dispatch_global(&self, event: Event) {
+        self.values()
+            .for_each(|clients| Self::dispatch_to(clients, &event));
+    }
+
+    pub fn dispatch_users(&self, users: Vec<String>, event: Event) {
+        users.into_iter().for_each(|user| {
+            if let Some(clients) = self.get(&user) {
+                Self::dispatch_to(clients, &event)
+            }
+        })
+    }
+
+    fn dispatch_to(clients: &Vec<Client>, event: &Event) {
+        clients.into_iter().for_each(|client| client.send(event))
     }
 }
 
 impl Deref for Clients {
-    type Target = HashMap<String, Client>;
+    type Target = HashMap<String, Vec<Client>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -255,16 +289,25 @@ pub async fn init() {
 
 async fn recover(rejection: Rejection) -> ResponseResult<()> {
     if rejection.is_not_found() {
-        return not_found!("Route")
+        return not_found!("Route");
     }
     if let Some(header) = rejection.find::<MissingHeader>() {
-        return err!(HttpError::Other(format!("Missing header: {}", header.name())), StatusCode::BAD_REQUEST)
+        return err!(
+            HttpError::Other(format!("Missing header: {}", header.name())),
+            StatusCode::BAD_REQUEST
+        );
     }
     if let Some(_) = rejection.find::<MethodNotAllowed>() {
-        return err!(HttpError::Other("Method not allowed".to_string()), StatusCode::METHOD_NOT_ALLOWED)
+        return err!(
+            HttpError::Other("Method not allowed".to_string()),
+            StatusCode::METHOD_NOT_ALLOWED
+        );
     }
     if let Some(_) = rejection.find::<MissingConnectionUpgrade>() {
-        return err!(HttpError::Other("Missing websocket upgrade".to_string()), StatusCode::METHOD_NOT_ALLOWED)
+        return err!(
+            HttpError::Other("Missing websocket upgrade".to_string()),
+            StatusCode::METHOD_NOT_ALLOWED
+        );
     }
     Err(rejection)
 }
@@ -292,16 +335,19 @@ pub macro ok($data: expr) {
 
 pub macro err($message: expr, $status: expr) {
     Ok(warp::reply::with_status(
-        Response::Error{
+        Response::Error {
             status_code: $status.as_u16(),
-            message: $message
+            message: $message,
         },
-        $status
+        $status,
     ))
 }
 
 pub macro not_found($name: expr) {
-    err!(HttpError::NotFound($name.to_string()), StatusCode::NOT_FOUND)
+    err!(
+        HttpError::NotFound($name.to_string()),
+        StatusCode::NOT_FOUND
+    )
 }
 
 pub macro with_login($token: expr) {
@@ -316,7 +362,10 @@ pub macro unwrap($req: expr) {
     if let Ok(val) = $req {
         val
     } else {
-        return err!(HttpError::Other($req.unwrap_err().to_string()), StatusCode::INTERNAL_SERVER_ERROR);
+        return err!(
+            HttpError::Other($req.unwrap_err().to_string()),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
     }
 }
 

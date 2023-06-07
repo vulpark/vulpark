@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database,
-    structures::{channel::{Channel, ChannelLocation}, restricted_string::RestrictedString, Event},
+    structures::{
+        channel::{Channel, ChannelLocation},
+        restricted_string::RestrictedString,
+        Event,
+    },
 };
 
 use super::{not_found, ok, unwrap, with_lock, with_login, ClientHolder, ResponseResult};
@@ -35,14 +39,18 @@ pub async fn create(
 ) -> ResponseResult<ChannelResponse> {
     let user = with_login!(token);
 
-    let channel = unwrap!(Channel::new(create.name.clone(), create.location.clone()).insert().await);
+    let channel = unwrap!(
+        Channel::new(create.name.clone(), create.location.clone())
+            .insert()
+            .await
+    );
 
     let event = Event::ChannelCreate {
         channel: channel.clone(),
         creator: user,
     };
 
-    with_lock!(clients).dispatch_event(event);
+    with_lock!(clients).dispatch_users(channel.get_users().await, event);
 
     ok!(ChannelResponse::from_channel(channel).await)
 }

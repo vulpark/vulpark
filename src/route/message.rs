@@ -7,11 +7,11 @@ use warp::hyper::StatusCode;
 
 use crate::{
     database, map_async,
-    structures::{message::Message, user::User, Event, channel::Channel},
+    structures::{channel::Channel, message::Message, user::User, Event},
 };
 
 use super::{
-    not_found, ok, unwrap, with_lock, with_login, ClientHolder, HttpError, Response, ResponseResult,
+    err, not_found, ok, unwrap, with_lock, with_login, ClientHolder, HttpError, ResponseResult,
 };
 
 #[derive(Debug, Deserialize)]
@@ -28,24 +28,23 @@ pub struct MessageResponse {
 }
 
 impl MessageResponse {
-    async fn from_message(message: Message) -> Self {
+    async fn from_message(message: Message, channel: Channel) -> Self {
         let Some(id) = &message.author_id else {
-            return Self::none(message).await;
+            return Self::none(message, channel).await;
         };
 
         let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
-            return Self::none(message).await;
+            return Self::none(message, channel).await;
         };
 
-        Self::from(message, Some(user)).await
+        Self::from(message, channel, Some(user)).await
     }
 
-    async fn none(message: Message) -> Self {
-        Self::from(message, None).await
+    async fn none(message: Message, channel: Channel) -> Self {
+        Self::from(message, channel, None).await
     }
 
-    async fn from(message: Message, author: Option<User>) -> Self {
-        let channel = database().await.fetch_channel(message.channel_id.clone()).await.unwrap().unwrap();
+    async fn from(message: Message, channel: Channel, author: Option<User>) -> Self {
         MessageResponse {
             message,
             channel,
@@ -62,44 +61,58 @@ pub async fn create(
     let user = with_login!(token);
 
     if create.content.is_empty() {
-        return Ok(warp::reply::with_status(
-            Response::Error {
-                status_code: 400,
-                message: HttpError::MessageContentEmpty,
-            },
-            StatusCode::BAD_REQUEST,
-        ));
+        return err!(HttpError::MessageContentEmpty, StatusCode::BAD_REQUEST);
     }
 
     let Some(channel) = unwrap!(database().await.fetch_channel(create.channel_id.clone()).await) else {
         return not_found!("Channel")
     };
 
+    let users = channel.get_users().await;
+
+    if !users.contains(&user.id) {
+        return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
+    }
+
     let message = unwrap!(
-        Message::new(create.channel_id.clone(), user.id.clone(), create.content.clone())
-            .insert()
-            .await
+        Message::new(
+            create.channel_id.clone(),
+            user.id.clone(),
+            create.content.clone()
+        )
+        .insert()
+        .await
     );
 
     let event = Event::MessageCreate {
         message: message.clone(),
         author: Some(user.clone()),
-        channel
+        channel: channel.clone(),
     };
 
-    with_lock!(clients).dispatch_event(event);
+    with_lock!(clients).dispatch_users(users, event);
 
-    ok!(MessageResponse::from(message, Some(user)).await)
+    ok!(MessageResponse::from(message, channel, Some(user)).await)
 }
 
 pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
-    with_login!(token);
+    let user = with_login!(token);
 
     let Some(message) = unwrap!(database().await.fetch_message(id.clone()).await) else {
         return not_found!("Message")
     };
 
-    ok!(MessageResponse::from_message(message).await)
+    let Some(channel) = unwrap!(database().await.fetch_channel(message.channel_id.clone()).await) else {
+        return not_found!("Channel")
+    };
+
+    let users = channel.get_users().await;
+
+    if !users.contains(&user.id) {
+        return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
+    }
+
+    ok!(MessageResponse::from_message(message, channel).await)
 }
 
 #[derive(Debug, Deserialize)]
@@ -120,7 +133,17 @@ pub async fn fetch_before(
     token: String,
     query: FetchBefore,
 ) -> ResponseResult<Vec<MessageResponse>> {
-    with_login!(token);
+    let user = with_login!(token);
+
+    let Some(channel) = unwrap!(database().await.fetch_channel(query.channel.clone()).await) else {
+        return not_found!("Channel")
+    };
+
+    let users = channel.get_users().await;
+
+    if !users.contains(&user.id) {
+        return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
+    }
 
     let max = query.max.unwrap_or(25).min(25);
 
@@ -131,11 +154,29 @@ pub async fn fetch_before(
             .await
     );
 
-    ok!(map_async(messages, MessageResponse::from_message).await)
+    let channel = &channel;
+
+    let mut out = vec![];
+    map_async!(messages, out, |it| MessageResponse::from_message(
+        it,
+        channel.clone()
+    ));
+
+    ok!(out)
 }
 
 pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec<MessageResponse>> {
-    with_login!(token);
+    let user = with_login!(token);
+
+    let Some(channel) = unwrap!(database().await.fetch_channel(query.channel.clone()).await) else {
+        return not_found!("Channel")
+    };
+
+    let users = channel.get_users().await;
+
+    if !users.contains(&user.id) {
+        return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
+    }
 
     let max = query.max.unwrap_or(25).min(25);
 
@@ -146,5 +187,13 @@ pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec
             .await
     );
 
-    ok!(map_async(messages, MessageResponse::from_message).await)
+    let channel = &channel;
+
+    let mut out = vec![];
+    map_async!(messages, out, |it| MessageResponse::from_message(
+        it,
+        channel.clone()
+    ));
+
+    ok!(out)
 }

@@ -5,12 +5,11 @@
 use std::{fs, path::Path};
 
 fn main() {
-    let mut header = include_str!("./license_header")
+    let header = include_str!("./license_header")
         .split("\n")
         .map(|it| format!("// {it}\n"))
         .reduce(|acc, line| format!("{acc}{line}"))
         .unwrap();
-    header.push('\n');
     let _ = visit_files(Path::new("src"), &header);
 }
 
@@ -34,7 +33,7 @@ fn write_header(path: &Path, header: &str) -> Result<(), std::io::Error> {
     let mut text = fs::read_to_string(path)?;
     if !text.starts_with(header) {
         let mut tmp = header.to_string();
-        tmp.push_str(&text);
+        tmp.push_str(&format!("{text}\n"));
         text = tmp;
     }
     let _ = fs::write(path, text)?;

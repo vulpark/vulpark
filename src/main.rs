@@ -11,7 +11,7 @@
 )]
 
 use database::Database;
-use futures::Future;
+use dotenv::dotenv;
 use std::sync::OnceLock;
 use ulid::Ulid;
 
@@ -19,23 +19,15 @@ mod database;
 mod route;
 mod structures;
 
-async fn map_async<I, O, F>(v: Vec<I>, f: fn(I) -> F) -> Vec<O>
-where
-    I: Send,
-    O: Send,
-    F: Future<Output = O> + Send,
-{
-    let mut out = vec![];
-
-    for i in v.into_iter() {
-        out.push(f.call((i,)).await);
+macro map_async($v: expr, $out: expr, $f: expr) {
+    for i in $v.into_iter() {
+        $out.push($f.call((i,)).await);
     }
-
-    out
 }
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenv();
     route::init().await
 }
 

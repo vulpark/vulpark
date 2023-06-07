@@ -54,7 +54,12 @@ impl Database {
         Ok(basic_fetch!(self.messages, id!(id)))
     }
 
-    pub async fn fetch_messages_before(&self, channel_id: String, time: String, max: i64) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_before(
+        &self,
+        channel_id: String,
+        time: String,
+        max: i64,
+    ) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
@@ -66,7 +71,12 @@ impl Database {
         Ok(messages.into_iter().map(Into::into).rev().collect())
     }
 
-    pub async fn fetch_messages_after(&self, channel_id: String, time: String, max: i64) -> Result<Vec<Message>> {
+    pub async fn fetch_messages_after(
+        &self,
+        channel_id: String,
+        time: String,
+        max: i64,
+    ) -> Result<Vec<Message>> {
         let Ok(timestamp) = DateTime::parse_rfc3339_str(time) else {
             return Ok(vec![]);
         };
