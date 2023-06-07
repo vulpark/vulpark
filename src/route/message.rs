@@ -2,56 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use serde::{Deserialize, Serialize};
 use warp::hyper::StatusCode;
 
 use crate::{
     database, map_async,
-    structures::{channel::Channel, message::Message, user::User, Event},
+    structures::{
+        error::ResponseResult,
+        event::Event,
+        message::{Message, MessageCreate, MessageFetchAfter, MessageFetchBefore, MessageResponse},
+    },
+    with_lock,
 };
 
-use super::{
-    err, not_found, ok, unwrap, with_lock, with_login, ClientHolder, HttpError, ResponseResult,
-};
-
-#[derive(Debug, Deserialize)]
-pub struct MessageCreate {
-    channel_id: String,
-    content: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct MessageResponse {
-    message: Message,
-    channel: Channel,
-    author: Option<User>,
-}
-
-impl MessageResponse {
-    async fn from_message(message: Message, channel: Channel) -> Self {
-        let Some(id) = &message.author_id else {
-            return Self::none(message, channel).await;
-        };
-
-        let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
-            return Self::none(message, channel).await;
-        };
-
-        Self::from(message, channel, Some(user)).await
-    }
-
-    async fn none(message: Message, channel: Channel) -> Self {
-        Self::from(message, channel, None).await
-    }
-
-    async fn from(message: Message, channel: Channel, author: Option<User>) -> Self {
-        MessageResponse {
-            message,
-            channel,
-            author,
-        }
-    }
-}
+use super::{macros::*, ClientHolder, HttpError};
 
 pub async fn create(
     token: String,
@@ -115,23 +78,9 @@ pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageRe
     ok!(MessageResponse::from_message(message, channel).await)
 }
 
-#[derive(Debug, Deserialize)]
-pub struct FetchBefore {
-    channel: String,
-    before: String,
-    max: Option<i64>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FetchAfter {
-    channel: String,
-    after: String,
-    max: Option<i64>,
-}
-
 pub async fn fetch_before(
     token: String,
-    query: FetchBefore,
+    query: MessageFetchBefore,
 ) -> ResponseResult<Vec<MessageResponse>> {
     let user = with_login!(token);
 
@@ -165,7 +114,10 @@ pub async fn fetch_before(
     ok!(out)
 }
 
-pub async fn fetch_after(token: String, query: FetchAfter) -> ResponseResult<Vec<MessageResponse>> {
+pub async fn fetch_after(
+    token: String,
+    query: MessageFetchAfter,
+) -> ResponseResult<Vec<MessageResponse>> {
     let user = with_login!(token);
 
     let Some(channel) = unwrap!(database().await.fetch_channel(query.channel.clone()).await) else {

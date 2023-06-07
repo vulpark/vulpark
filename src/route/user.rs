@@ -2,23 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use serde::{Deserialize, Serialize};
 use warp::hyper::StatusCode;
 
-use crate::{database, structures::user::User};
+use crate::{
+    database,
+    structures::{
+        error::ResponseResult,
+        user::{User, UserCreateRequest, UserCreateResponse},
+    },
+};
 
-use super::{expect, not_found, ok, unwrap, with_login, HttpError, ResponseResult};
-
-#[derive(Debug, Deserialize)]
-pub struct UserCreateRequest {
-    pub username: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct UserCreateResponse {
-    pub user: User,
-    pub token: String,
-}
+use super::{macros::*, HttpError};
 
 impl From<(User, String)> for UserCreateResponse {
     fn from(value: (User, String)) -> Self {

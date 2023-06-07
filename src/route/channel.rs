@@ -2,35 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     database,
     structures::{
-        channel::{Channel, ChannelLocation},
-        restricted_string::RestrictedString,
-        Event,
+        channel::{Channel, ChannelCreate, ChannelResponse},
+        error::ResponseResult,
+        event::Event,
     },
+    with_lock,
 };
 
-use super::{not_found, ok, unwrap, with_lock, with_login, ClientHolder, ResponseResult};
-
-#[derive(Debug, Deserialize)]
-pub struct ChannelCreate {
-    name: RestrictedString,
-    location: ChannelLocation,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ChannelResponse {
-    channel: Channel,
-}
-
-impl ChannelResponse {
-    async fn from_channel(channel: Channel) -> Self {
-        Self { channel }
-    }
-}
+use super::{macros::*, ClientHolder};
 
 pub async fn create(
     token: String,

@@ -20,6 +20,22 @@ pub struct Channel {
     pub location: ChannelLocation,
 }
 
+#[derive(Debug, Clone)]
+pub enum ChannelLocation {
+    Dm { members: Vec<String> },
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChannelCreate {
+    pub name: RestrictedString,
+    pub location: ChannelLocation,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ChannelResponse {
+    pub channel: Channel,
+}
+
 impl Channel {
     pub fn new(name: RestrictedString, location: ChannelLocation) -> Self {
         Self {
@@ -38,11 +54,6 @@ impl Channel {
             ChannelLocation::Dm { members } => members.clone(),
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum ChannelLocation {
-    Dm { members: Vec<String> },
 }
 
 impl Serialize for ChannelLocation {
@@ -99,5 +110,11 @@ impl<'de> Visitor<'de> for LocationVisitor {
             "dm" => Ok(ChannelLocation::Dm { members }),
             _ => Err(de::Error::unknown_variant("type", &["dm"])),
         }
+    }
+}
+
+impl ChannelResponse {
+    pub async fn from_channel(channel: Channel) -> Self {
+        Self { channel }
     }
 }

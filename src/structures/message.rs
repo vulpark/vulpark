@@ -9,6 +9,8 @@ use ulid::Ulid;
 
 use crate::database;
 
+use super::{channel::Channel, user::User};
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Message {
     pub id: String,
@@ -16,6 +18,33 @@ pub struct Message {
     pub author_id: Option<String>,
     pub content: String,
     pub created: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MessageCreate {
+    pub channel_id: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MessageResponse {
+    pub message: Message,
+    pub channel: Channel,
+    pub author: Option<User>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MessageFetchBefore {
+    pub channel: String,
+    pub before: String,
+    pub max: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MessageFetchAfter {
+    pub channel: String,
+    pub after: String,
+    pub max: Option<i64>,
 }
 
 impl Message {
@@ -31,5 +60,31 @@ impl Message {
 
     pub async fn insert(self) -> Result<Self, Error> {
         database().await.create_message(self).await
+    }
+}
+
+impl MessageResponse {
+    pub async fn from_message(message: Message, channel: Channel) -> Self {
+        let Some(id) = &message.author_id else {
+            return Self::none(message, channel).await;
+        };
+
+        let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
+            return Self::none(message, channel).await;
+        };
+
+        Self::from(message, channel, Some(user)).await
+    }
+
+    pub async fn none(message: Message, channel: Channel) -> Self {
+        Self::from(message, channel, None).await
+    }
+
+    pub async fn from(message: Message, channel: Channel, author: Option<User>) -> Self {
+        MessageResponse {
+            message,
+            channel,
+            author,
+        }
     }
 }

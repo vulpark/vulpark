@@ -14,6 +14,17 @@ pub struct User {
     pub discriminator: u32,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UserCreateRequest {
+    pub username: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UserCreateResponse {
+    pub user: User,
+    pub token: String,
+}
+
 impl User {
     pub async fn create(username: String) -> Result<Option<(Self, String)>, Error> {
         database().await.create_user(username).await

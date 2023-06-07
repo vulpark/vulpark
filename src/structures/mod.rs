@@ -4,33 +4,10 @@
 
 pub mod auth;
 pub mod channel;
+pub mod client;
+pub mod error;
+pub mod event;
 pub mod message;
+pub mod response;
 pub mod restricted_string;
 pub mod user;
-
-use serde::Serialize;
-
-use self::{channel::Channel, message::Message, user::User};
-
-#[derive(Serialize)]
-pub enum Event {
-    HandshakeStart {},
-    HandshakeComplete {
-        user: User,
-    },
-    MessageCreate {
-        message: Message,
-        author: Option<User>,
-        channel: Channel,
-    },
-    ChannelCreate {
-        channel: Channel,
-        creator: User,
-    },
-}
-
-impl ToString for Event {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-}

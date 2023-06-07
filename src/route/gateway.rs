@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use futures::StreamExt;
-use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{
@@ -11,36 +10,11 @@ use warp::{
     Rejection, Reply,
 };
 
-use crate::structures::Event;
-
-use super::{with_lock, Client, ClientHolder};
-
-#[derive(Debug, Deserialize)]
-enum ReceivedEvent {
-    Handshake { token: String },
-}
-
-impl ReceivedEvent {
-    async fn handle(&self, mut client: Client, clients: &ClientHolder) -> Option<Event> {
-        match self {
-            Self::Handshake { token } => {
-                if let Some(_) = client.user_id {
-                    return None;
-                }
-                let user = client.set_user(token.clone()).await?;
-                {
-                    let mut lock = with_lock!(clients);
-                    if let Some(clients) = lock.get_mut(&user.id) {
-                        clients.push(client.clone());
-                    } else {
-                        lock.insert(user.id.clone(), vec![client.clone()]);
-                    };
-                }
-                Some(Event::HandshakeComplete { user })
-            }
-        }
-    }
-}
+use crate::structures::{
+    client::{Client, ClientHolder},
+    event::Event,
+    event::ReceivedEvent,
+};
 
 pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {

@@ -45,3 +45,7 @@ pub async fn database() -> &'static Database {
     let _ = DATABASE.set(database);
     DATABASE.get().unwrap()
 }
+
+pub macro with_lock($mutex: expr) {
+    $mutex.lock().await
+}
