@@ -9,7 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::structures::message::Message;
 
-use super::{macros::*, to_vec, Database};
+use super::{
+    macros::{after, basic_create, basic_fetch, before, id},
+    to_vec, Database,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DatabaseMessage {
@@ -32,14 +35,14 @@ impl From<&Message> for DatabaseMessage {
     }
 }
 
-impl Into<Message> for DatabaseMessage {
-    fn into(self) -> Message {
+impl From<DatabaseMessage> for Message {
+    fn from(value: DatabaseMessage) -> Message {
         Message {
-            id: self._id,
-            channel_id: self.channel_id,
-            author_id: self.author_id,
-            content: self.content,
-            created: self.created.try_to_rfc3339_string().unwrap(),
+            id: value._id,
+            channel_id: value.channel_id,
+            author_id: value.author_id,
+            content: value.content,
+            created: value.created.try_to_rfc3339_string().unwrap(),
         }
     }
 }

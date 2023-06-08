@@ -4,7 +4,6 @@
 
 use std::{ops::Deref, str::FromStr};
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -19,9 +18,6 @@ pub struct RestrictedString {
 }
 
 impl RestrictedString {
-    const ILLEGAL_CHARS: Lazy<Regex> =
-        Lazy::new(|| Regex::new("[\\s\u{200b}-\u{200f}\u{2060}]").unwrap());
-
     pub fn new(value: &str) -> Self {
         Self {
             inner: Self::trim(Self::filter(value)),
@@ -29,7 +25,10 @@ impl RestrictedString {
     }
 
     fn filter(value: &str) -> String {
-        Self::ILLEGAL_CHARS.replace_all(&value, "-").to_string()
+        Regex::new("[\\s\u{200b}-\u{200f}\u{2060}]")
+            .unwrap()
+            .replace_all(value, "-")
+            .to_string()
     }
 
     fn trim(value: String) -> String {
@@ -52,9 +51,9 @@ impl From<&str> for RestrictedString {
     }
 }
 
-impl Into<String> for RestrictedString {
-    fn into(self) -> String {
-        self.inner
+impl From<RestrictedString> for String {
+    fn from(value: RestrictedString) -> Self {
+        value.inner
     }
 }
 
@@ -85,7 +84,7 @@ impl Serialize for RestrictedString {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self)
+        serializer.serialize_str(self)
     }
 }
 

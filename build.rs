@@ -6,7 +6,7 @@ use std::{fs, path::Path};
 
 fn main() {
     let header = include_str!("./license_header")
-        .split("\n")
+        .split('\n')
         .map(|it| format!("// {it}\n"))
         .reduce(|acc, line| format!("{acc}{line}"))
         .unwrap();
@@ -18,7 +18,7 @@ fn visit_files(path: &Path, header: &str) -> Result<(), std::io::Error> {
         return write_header(path, header);
     }
     for new in path.read_dir().unwrap() {
-        visit_files(new?.path().as_path(), header).unwrap()
+        visit_files(new?.path().as_path(), header).unwrap();
     }
     Ok(())
 }
@@ -30,12 +30,12 @@ fn write_header(path: &Path, header: &str) -> Result<(), std::io::Error> {
     if ext != "rs" {
         return Ok(());
     }
-    let mut text = fs::read_to_string(path)?;
-    if !text.starts_with(header) {
+    let mut file = fs::read_to_string(path)?;
+    if !file.starts_with(header) {
         let mut tmp = header.to_string();
-        tmp.push_str(&format!("{text}\n"));
-        text = tmp;
+        tmp.push_str(&format!("{file}\n"));
+        file = tmp;
     }
-    let _ = fs::write(path, text)?;
+    fs::write(path, file)?;
     Ok(())
 }

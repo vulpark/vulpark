@@ -51,7 +51,7 @@ impl Client {
         let mut lock = with_lock!(clients);
         let id = self.user_id.clone()?;
         let clients = lock.get_mut(&id)?;
-        let index = clients.into_iter().position(|it| it.id == self.id)?;
+        let index = clients.iter().position(|it| it.id == self.id)?;
         clients.remove(index);
         Some(())
     }
@@ -60,21 +60,21 @@ impl Client {
 pub struct Clients(pub HashMap<String, Vec<Client>>);
 
 impl Clients {
-    pub fn dispatch_global(&self, event: Event) {
+    pub fn dispatch_global(&self, event: &Event) {
         self.values()
-            .for_each(|clients| Self::dispatch_to(clients, &event));
+            .for_each(|clients| Self::dispatch_to(clients, event));
     }
 
-    pub fn dispatch_users(&self, users: Vec<String>, event: Event) {
-        users.into_iter().for_each(|user| {
+    pub fn dispatch_users(&self, users: Vec<String>, event: &Event) {
+        for user in users {
             if let Some(clients) = self.get(&user) {
-                Self::dispatch_to(clients, &event)
+                Self::dispatch_to(clients, event);
             }
-        })
+        }
     }
 
-    fn dispatch_to(clients: &Vec<Client>, event: &Event) {
-        clients.into_iter().for_each(|client| client.send(event))
+    fn dispatch_to(clients: &[Client], event: &Event) {
+        clients.iter().for_each(|client| client.send(event));
     }
 }
 

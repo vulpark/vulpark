@@ -12,7 +12,10 @@ use crate::{
     },
 };
 
-use super::{macros::*, HttpError};
+use super::{
+    macros::{expect, not_found, ok, unwrap, with_login},
+    HttpError,
+};
 
 impl From<(User, String)> for UserCreateResponse {
     fn from(value: (User, String)) -> Self {
@@ -40,5 +43,5 @@ pub async fn fetch(user_id: String, token: String) -> ResponseResult<User> {
         return not_found!("User")
     };
 
-    ok!(user.into())
+    ok!(user)
 }

@@ -10,7 +10,10 @@ use crate::structures::{
     restricted_string::RestrictedString,
 };
 
-use super::{macros::*, Database};
+use super::{
+    macros::{basic_create, basic_fetch, id},
+    Database,
+};
 
 #[derive(Serialize, Deserialize)]
 pub struct DatabaseChannel {
@@ -29,12 +32,12 @@ impl From<&Channel> for DatabaseChannel {
     }
 }
 
-impl Into<Channel> for DatabaseChannel {
-    fn into(self) -> Channel {
+impl From<DatabaseChannel> for Channel {
+    fn from(value: DatabaseChannel) -> Self {
         Channel {
-            id: self._id,
-            name: self.name,
-            location: self.location,
+            id: value._id,
+            name: value.name,
+            location: value.location,
         }
     }
 }

@@ -66,21 +66,21 @@ impl Message {
 impl MessageResponse {
     pub async fn from_message(message: Message, channel: Channel) -> Self {
         let Some(id) = &message.author_id else {
-            return Self::none(message, channel).await;
+            return Self::none(message, channel);
         };
 
         let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
-            return Self::none(message, channel).await;
+            return Self::none(message, channel);
         };
 
-        Self::from(message, channel, Some(user)).await
+        Self::from(message, channel, Some(user))
     }
 
-    pub async fn none(message: Message, channel: Channel) -> Self {
-        Self::from(message, channel, None).await
+    pub fn none(message: Message, channel: Channel) -> Self {
+        Self::from(message, channel, None)
     }
 
-    pub async fn from(message: Message, channel: Channel, author: Option<User>) -> Self {
+    pub fn from(message: Message, channel: Channel, author: Option<User>) -> Self {
         MessageResponse {
             message,
             channel,

@@ -64,7 +64,7 @@ impl Service {
         .set_redirect_uri(RedirectUrl::new(REDIRECT_URI.into()).unwrap())
     }
 
-    pub fn get_url(&self, client: BasicClient, path: String) -> (Url, CsrfToken, PkceCodeVerifier) {
+    pub fn get_url(&self, client: &BasicClient, path: &str) -> (Url, CsrfToken, PkceCodeVerifier) {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
         let (auth_url, csrf_token) = client
             .authorize_url(CsrfToken::new_random)

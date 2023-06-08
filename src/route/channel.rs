@@ -12,7 +12,10 @@ use crate::{
     with_lock,
 };
 
-use super::{macros::*, ClientHolder};
+use super::{
+    macros::{not_found, ok, unwrap, with_login},
+    ClientHolder,
+};
 
 pub async fn create(
     token: String,
@@ -32,9 +35,9 @@ pub async fn create(
         creator: user,
     };
 
-    with_lock!(clients).dispatch_users(channel.get_users().await, event);
+    with_lock!(clients).dispatch_users(channel.get_users(), &event);
 
-    ok!(ChannelResponse::from_channel(channel).await)
+    ok!(ChannelResponse::from_channel(channel))
 }
 
 pub async fn fetch(token: String, id: String) -> ResponseResult<ChannelResponse> {
@@ -44,5 +47,5 @@ pub async fn fetch(token: String, id: String) -> ResponseResult<ChannelResponse>
         return not_found!("Channel")
     };
 
-    ok!(ChannelResponse::from_channel(channel).await)
+    ok!(ChannelResponse::from_channel(channel))
 }

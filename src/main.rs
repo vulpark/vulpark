@@ -9,6 +9,7 @@
     fn_traits,
     let_chains
 )]
+#![allow(clippy::module_name_repetitions, clippy::unused_async)]
 
 use database::Database;
 use dotenv::dotenv;
@@ -28,15 +29,19 @@ macro map_async($v: expr, $out: expr, $f: expr) {
 #[tokio::main]
 async fn main() {
     let _ = dotenv();
-    route::init().await
+    route::init().await;
 }
 
 static DATABASE: OnceLock<Database> = OnceLock::new();
 
+#[must_use]
 pub fn generate_ulid() -> String {
     Ulid::new().to_string()
 }
 
+/// # Panics
+/// - if `MongoDb` connection fails
+#[must_use]
 pub async fn database() -> &'static Database {
     if let Some(database) = DATABASE.get() {
         return database;

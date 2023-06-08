@@ -49,7 +49,7 @@ impl Channel {
         database().await.create_channel(self).await
     }
 
-    pub async fn get_users(&self) -> Vec<String> {
+    pub fn get_users(&self) -> Vec<String> {
         match &self.location {
             ChannelLocation::Dm { members } => members.clone(),
         }
@@ -114,7 +114,7 @@ impl<'de> Visitor<'de> for LocationVisitor {
 }
 
 impl ChannelResponse {
-    pub async fn from_channel(channel: Channel) -> Self {
+    pub fn from_channel(channel: Channel) -> Self {
         Self { channel }
     }
 }

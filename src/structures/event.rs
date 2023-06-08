@@ -4,11 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    channel::Channel,
-    message::Message,
-    user::User,
-};
+use super::{channel::Channel, message::Message, user::User};
 
 #[derive(Serialize)]
 pub enum Event {

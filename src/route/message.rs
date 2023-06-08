@@ -14,7 +14,10 @@ use crate::{
     with_lock,
 };
 
-use super::{macros::*, ClientHolder, HttpError};
+use super::{
+    macros::{err, not_found, ok, unwrap, with_login},
+    ClientHolder, HttpError,
+};
 
 pub async fn create(
     token: String,
@@ -31,7 +34,7 @@ pub async fn create(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users().await;
+    let users = channel.get_users();
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -53,9 +56,9 @@ pub async fn create(
         channel: channel.clone(),
     };
 
-    with_lock!(clients).dispatch_users(users, event);
+    with_lock!(clients).dispatch_users(users, &event);
 
-    ok!(MessageResponse::from(message, channel, Some(user)).await)
+    ok!(MessageResponse::from(message, channel, Some(user)))
 }
 
 pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
@@ -69,7 +72,7 @@ pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageRe
         return not_found!("Channel")
     };
 
-    let users = channel.get_users().await;
+    let users = channel.get_users();
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -88,7 +91,7 @@ pub async fn fetch_before(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users().await;
+    let users = channel.get_users();
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -124,7 +127,7 @@ pub async fn fetch_after(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users().await;
+    let users = channel.get_users();
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);

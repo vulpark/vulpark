@@ -10,7 +10,10 @@ use ulid::Ulid;
 
 use crate::structures::user::User;
 
-use super::{macros::*, Database};
+use super::{
+    macros::{basic_fetch, eq, id},
+    Database,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseUser {
@@ -20,12 +23,12 @@ pub struct DatabaseUser {
     pub(super) token: String,
 }
 
-impl Into<User> for DatabaseUser {
-    fn into(self) -> User {
+impl From<DatabaseUser> for User {
+    fn from(value: DatabaseUser) -> Self {
         User {
-            id: self._id,
-            username: self.username,
-            discriminator: self.discriminator,
+            id: value._id,
+            username: value.username,
+            discriminator: value.discriminator,
         }
     }
 }
@@ -34,13 +37,14 @@ impl Database {
     async fn create_user_internal(&self, username: String) -> Result<Option<DatabaseUser>> {
         let mut discrim: u32 = rand::thread_rng().gen_range(1..9999);
         let mut count = 1;
-        while let Some(_) = self
+        while self
             .users
             .find_one(
                 doc! {"username": username.clone(), "discriminator": discrim},
                 None,
             )
             .await?
+            .is_some()
         {
             discrim = rand::thread_rng().gen_range(1..9999);
             count += 1;

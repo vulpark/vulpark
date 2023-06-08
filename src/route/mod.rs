@@ -22,7 +22,7 @@ use crate::structures::error::{HttpError, ResponseResult};
 use crate::structures::response::Response;
 
 use self::gateway::gateway;
-use self::macros::*;
+use self::macros::{err, not_found};
 
 pub async fn init() {
     let clients: ClientHolder = Arc::new(Mutex::new(Clients(HashMap::new())));
@@ -106,13 +106,13 @@ async fn recover(rejection: Rejection) -> ResponseResult<()> {
             StatusCode::BAD_REQUEST
         );
     }
-    if let Some(_) = rejection.find::<MethodNotAllowed>() {
+    if rejection.find::<MethodNotAllowed>().is_some() {
         return err!(
             HttpError::Other("Method not allowed".to_string()),
             StatusCode::METHOD_NOT_ALLOWED
         );
     }
-    if let Some(_) = rejection.find::<MissingConnectionUpgrade>() {
+    if rejection.find::<MissingConnectionUpgrade>().is_some() {
         return err!(
             HttpError::Other("Missing websocket upgrade".to_string()),
             StatusCode::METHOD_NOT_ALLOWED
