@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::database;
 
-use super::auth::Service;
+use super::{auth::Service, restricted_string::RestrictedString};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -36,8 +36,8 @@ pub struct UserLoginResponse {
 }
 
 impl User {
-    pub async fn create(username: String) -> Result<Option<(Self, String)>, Error> {
-        database().await.create_user(username).await
+    pub async fn create(username: &str) -> Result<Option<(Self, String)>, Error> {
+        database().await.create_user(RestrictedString::space(username)).await
     }
 }
 

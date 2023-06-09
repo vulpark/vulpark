@@ -25,7 +25,7 @@ pub async fn create(
     let user = with_login!(token);
 
     let channel = unwrap!(
-        Channel::new(create.name.clone(), create.location.clone())
+        Channel::new(&create.name, create.location.clone())
             .insert()
             .await
     );

@@ -49,7 +49,7 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
     }
 
     let user = expect!(
-        unwrap!(User::create(user.username.clone()).await),
+        unwrap!(User::create(&user.username).await),
         StatusCode::INTERNAL_SERVER_ERROR,
         HttpError::TooManyUsers
     );

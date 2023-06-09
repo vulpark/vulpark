@@ -16,7 +16,7 @@ use super::restricted_string::RestrictedString;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Channel {
     pub id: String,
-    pub name: RestrictedString,
+    pub name: String,
     pub location: ChannelLocation,
 }
 
@@ -27,7 +27,7 @@ pub enum ChannelLocation {
 
 #[derive(Debug, Deserialize)]
 pub struct ChannelCreate {
-    pub name: RestrictedString,
+    pub name: String,
     pub location: ChannelLocation,
 }
 
@@ -37,10 +37,10 @@ pub struct ChannelResponse {
 }
 
 impl Channel {
-    pub fn new(name: RestrictedString, location: ChannelLocation) -> Self {
+    pub fn new(name: &str, location: ChannelLocation) -> Self {
         Self {
             id: generate_ulid(),
-            name,
+            name: RestrictedString::no_space(name),
             location,
         }
     }

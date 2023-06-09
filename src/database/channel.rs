@@ -5,10 +5,7 @@
 use mongodb::error::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::structures::{
-    channel::{Channel, ChannelLocation},
-    restricted_string::RestrictedString,
-};
+use crate::structures::channel::{Channel, ChannelLocation};
 
 use super::{
     macros::{basic_create, basic_fetch, id},
@@ -18,7 +15,7 @@ use super::{
 #[derive(Serialize, Deserialize)]
 pub struct DatabaseChannel {
     pub _id: String,
-    pub name: RestrictedString,
+    pub name: String,
     pub location: ChannelLocation,
 }
 
