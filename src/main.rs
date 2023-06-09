@@ -28,7 +28,7 @@ macro map_async($v: expr, $out: expr, $f: expr) {
 
 #[tokio::main]
 async fn main() {
-    let _ = dotenv();
+    let _ = dotenv().unwrap();
     route::init().await;
 }
 

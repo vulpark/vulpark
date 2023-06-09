@@ -4,6 +4,7 @@
 
 #![allow(clippy::used_underscore_binding)]
 
+mod auth;
 mod channel;
 mod macros;
 mod message;
@@ -14,6 +15,7 @@ use futures::TryStream;
 use mongodb::Cursor;
 use mongodb::{error::Result, options::ClientOptions, Client, Collection};
 
+use self::auth::DatabaseLogin;
 use self::channel::DatabaseChannel;
 use self::message::DatabaseMessage;
 use self::user::DatabaseUser;
@@ -25,6 +27,7 @@ pub struct Database {
     messages: Collection<DatabaseMessage>,
     channels: Collection<DatabaseChannel>,
     users: Collection<DatabaseUser>,
+    logins: Collection<DatabaseLogin>,
 }
 
 impl Database {
@@ -35,12 +38,14 @@ impl Database {
         let messages = db.collection("messages");
         let channels = db.collection("channels");
         let users = db.collection("users");
+        let logins = db.collection("logins");
         Ok(Self {
             client,
             db,
             messages,
             channels,
             users,
+            logins,
         })
     }
 }

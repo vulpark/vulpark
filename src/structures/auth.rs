@@ -2,98 +2,123 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use oauth2::{
-    basic::{BasicClient, BasicErrorResponseType, BasicTokenType},
-    reqwest::async_http_client,
-    url::Url,
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
-    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, RequestTokenError, Scope,
-    StandardErrorResponse, StandardTokenResponse, TokenUrl,
-};
-use std::{borrow::Cow, fmt::Display};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::fmt::Display;
 
-const REDIRECT_URI: &str = "http://127.0.0.1:8000/auth";
+use crate::generate_ulid;
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Login {
+    pub id: String,
+    pub service: Service,
+    pub service_user: String,
+    pub user_id: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Service {
+    #[serde(rename = "github")]
     Github,
 }
 
+#[derive(Debug)]
+pub enum AuthError {
+    Reqwest(reqwest::Error),
+    Serde(serde_json::Error),
+    String(String),
+}
+
+impl Login {
+    pub fn new(service: Service, service_user: String, user_id: String) -> Self {
+        Self {
+            id: generate_ulid(),
+            service,
+            service_user,
+            user_id,
+        }
+    }
+}
+
 impl Service {
-    fn secret(&self) -> Option<ClientSecret> {
-        Some(ClientSecret::new(
-            std::env::var(format!("{self}_SECRET").to_uppercase()).ok()?,
-        ))
+    pub fn secret(self) -> String {
+        std::env::var(format!("{self}_SECRET").to_uppercase()).unwrap()
     }
 
-    fn client_id(&self) -> ClientId {
+    pub fn client_id(self) -> String {
         match self {
-            Self::Github => ClientId::new("01a54a05ac326eca7c4f".into()),
+            Self::Github => "01a54a05ac326eca7c4f".to_string(),
         }
     }
 
-    fn auth_url(&self) -> AuthUrl {
+    pub fn token_url(self, code: &str) -> String {
         match self {
-            Self::Github => {
-                AuthUrl::new("https://github.com/login/oauth/authorize".into()).unwrap()
-            }
+            Self::Github => format!(
+                "https://github.com/login/oauth/access_token?client_id={}&code={}&client_secret={}",
+                self.client_id(),
+                code,
+                self.secret()
+            ),
         }
     }
 
-    fn token_url(&self) -> Option<TokenUrl> {
+    pub fn user_url(self) -> String {
         match self {
-            Self::Github => {
-                TokenUrl::new("https://github.com/login/oauth/access_token".into()).ok()
-            }
+            Self::Github => "https://api.github.com/user".to_string(),
         }
     }
 
-    fn scope(&self) -> Scope {
+    pub async fn fetch_token(self, code: &str) -> Result<String, AuthError> {
+        let url = self.token_url(code);
         match self {
-            Self::Github => Scope::new("user".to_string()),
+            Self::Github => self.fetch_token_gh(url).await,
         }
     }
 
-    pub fn client(&self) -> BasicClient {
-        BasicClient::new(
-            self.client_id(),
-            self.secret(),
-            self.auth_url(),
-            self.token_url(),
-        )
-        .set_redirect_uri(RedirectUrl::new(REDIRECT_URI.into()).unwrap())
+    async fn fetch_token_gh(self, url: String) -> Result<String, AuthError> {
+        let client = reqwest::Client::new();
+        let body = client
+            .get(url)
+            .header("Accept", "application/json")
+            .send()
+            .await?
+            .text()
+            .await?;
+        let response: Value = serde_json::from_str(&body)?;
+        Ok(response
+            .get("access_token")
+            .ok_or(AuthError::String("No token field.".to_string()))?
+            .as_str()
+            .ok_or(AuthError::String("Token field not string".to_string()))?
+            .to_string())
     }
 
-    pub fn get_url(&self, client: &BasicClient, path: &str) -> (Url, CsrfToken, PkceCodeVerifier) {
-        let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-        let (auth_url, csrf_token) = client
-            .authorize_url(CsrfToken::new_random)
-            .add_scope(self.scope())
-            .set_pkce_challenge(pkce_challenge)
-            .set_redirect_uri(Cow::Owned(
-                RedirectUrl::new(format!("{REDIRECT_URI}/{path}")).unwrap(),
-            ))
-            .url();
-        (auth_url, csrf_token, pkce_verifier)
+    pub async fn get_uid(self, token: String) -> Result<String, AuthError> {
+        let url = self.user_url();
+        match self {
+            Self::Github => self.get_uid_gh(url, token).await,
+        }
     }
 
-    pub async fn get_token(
-        &self,
-        client: BasicClient,
-        code: AuthorizationCode,
-        pkce_verifier: PkceCodeVerifier,
-    ) -> Result<
-        StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
-        RequestTokenError<
-            oauth2::reqwest::Error<reqwest::Error>,
-            StandardErrorResponse<BasicErrorResponseType>,
-        >,
-    > {
-        client
-            .exchange_code(code)
-            .set_pkce_verifier(pkce_verifier)
-            .request_async(async_http_client)
-            .await
+    async fn get_uid_gh(self, url: String, token: String) -> Result<String, AuthError> {
+        let client = reqwest::Client::new();
+        let f = format!("Bearer {token}");
+        println!("{f}");
+        let body = client
+            .get(url)
+            .header("Authorization", f)
+            .header("User-Agent", "Vulpark Authentication Services")
+            .send()
+            .await?
+            .text()
+            .await?;
+        let response: Value = serde_json::from_str(&body)?;
+        Ok(response
+            .get("id")
+            .ok_or(AuthError::String("No user ID field.".to_string()))?
+            .as_u64()
+            .ok_or(AuthError::String("User ID field wrong type.".to_string()))?
+            .to_string())
     }
 }
 
@@ -101,6 +126,28 @@ impl Display for Service {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Github => f.write_str("github"),
+        }
+    }
+}
+
+impl From<reqwest::Error> for AuthError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::Reqwest(value)
+    }
+}
+
+impl From<serde_json::Error> for AuthError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::Serde(value)
+    }
+}
+
+impl ToString for AuthError {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Reqwest(err) => err.to_string(),
+            Self::Serde(err) => err.to_string(),
+            Self::String(str) => str.to_string(),
         }
     }
 }

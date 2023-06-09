@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::database;
 
+use super::auth::Service;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
@@ -17,10 +19,12 @@ pub struct User {
 #[derive(Debug, Deserialize)]
 pub struct UserCreateRequest {
     pub username: String,
+    pub service: Service,
+    pub oauth_code: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct UserCreateResponse {
+pub struct UserLoginResponse {
     pub user: User,
     pub token: String,
 }

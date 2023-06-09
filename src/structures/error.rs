@@ -5,7 +5,7 @@
 use serde::Serialize;
 use warp::{reply::WithStatus, Rejection};
 
-use super::response::Response;
+use super::{auth::AuthError, response::Response};
 
 pub type ResponseResult<T> = Result<WithStatus<Response<T>>, Rejection>;
 
@@ -16,6 +16,7 @@ pub enum HttpError {
     MessageContentEmpty,
     ChannelAccessDenied,
     TooManyUsers,
+    Oauth(AuthError),
     Other(String),
 }
 
@@ -27,6 +28,7 @@ impl ToString for HttpError {
             Self::MessageContentEmpty => "Message content is empty.".to_string(),
             Self::ChannelAccessDenied => "Channel access is denied".to_string(),
             Self::TooManyUsers => "Too many users with the same username".to_string(),
+            Self::Oauth(err) => err.to_string(),
             Self::Other(msg) => msg.to_string(),
         }
     }
