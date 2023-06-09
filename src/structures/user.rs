@@ -23,6 +23,12 @@ pub struct UserCreateRequest {
     pub oauth_code: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UserLoginRequest {
+    pub service: Service,
+    pub oauth_code: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct UserLoginResponse {
     pub user: User,

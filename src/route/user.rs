@@ -7,9 +7,9 @@ use warp::hyper::StatusCode;
 use crate::{
     database,
     structures::{
-        auth::Login,
+        auth::{Login, AuthError},
         error::ResponseResult,
-        user::{User, UserCreateRequest, UserLoginResponse},
+        user::{User, UserCreateRequest, UserLoginResponse, UserLoginRequest},
     },
 };
 
@@ -40,6 +40,14 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
         Result::Err(err) => return err!(HttpError::Oauth(err), StatusCode::INTERNAL_SERVER_ERROR),
     };
 
+    match database().await.fetch_login(service, uid.clone()).await {
+        Ok(login) => match login {
+            Some(_) => return err!(HttpError::AccountAttached, StatusCode::FORBIDDEN),
+            None => {}
+        },
+        Err(error) => return err!(HttpError::Oauth(AuthError::Mongo(error)), StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
     let user = expect!(
         unwrap!(User::create(user.username.clone()).await),
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -49,6 +57,34 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
     let login = Login::new(service, uid, user.0.id.clone());
 
     let _ = database().await.create_login(login).await;
+
+    ok!(user.into())
+}
+
+pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> {
+    let service = user.service;
+
+    let token = match service.fetch_token(&user.oauth_code).await {
+        Result::Ok(token) => token,
+        Result::Err(err) => return err!(HttpError::Oauth(err), StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let uid = match service.get_uid(token).await {
+        Result::Ok(token) => token,
+        Result::Err(err) => return err!(HttpError::Oauth(err), StatusCode::INTERNAL_SERVER_ERROR),
+    };
+
+    let login = match database().await.fetch_login(service, uid.clone()).await {
+        Ok(login) => match login {
+            Some(login) => login,
+            None => return err!(HttpError::AccountNotAttached, StatusCode::FORBIDDEN)
+        },
+        Err(error) => return err!(HttpError::Oauth(AuthError::Mongo(error)), StatusCode::INTERNAL_SERVER_ERROR)
+    };
+
+    let Some(user) = unwrap!(database().await.fetch_user_login(login.user_id.clone()).await) else {
+        return not_found!("User")
+    };
 
     ok!(user.into())
 }

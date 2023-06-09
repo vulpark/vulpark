@@ -74,6 +74,11 @@ pub async fn init() {
         .and(warp::body::json())
         .and_then(user::create);
 
+    let user_login = warp::path("users")
+        .and(warp::get())
+        .and(warp::body::json())
+        .and_then(user::login);
+
     let user_fetch = warp::path("users")
         .and(warp::get())
         .and(warp::path::param())
@@ -88,6 +93,7 @@ pub async fn init() {
         .or(channel_create)
         .or(channel_fetch)
         .or(user_create)
+        .or(user_login)
         .or(user_fetch)
         .recover(recover)
         .with(warp::cors().allow_any_origin());

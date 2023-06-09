@@ -24,6 +24,7 @@ pub enum Service {
 
 #[derive(Debug)]
 pub enum AuthError {
+    Mongo(mongodb::error::Error),
     Reqwest(reqwest::Error),
     Serde(serde_json::Error),
     String(String),
@@ -145,6 +146,7 @@ impl From<serde_json::Error> for AuthError {
 impl ToString for AuthError {
     fn to_string(&self) -> String {
         match self {
+            Self::Mongo(err) => err.to_string(),
             Self::Reqwest(err) => err.to_string(),
             Self::Serde(err) => err.to_string(),
             Self::String(str) => str.to_string(),

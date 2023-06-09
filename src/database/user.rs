@@ -73,6 +73,16 @@ impl Database {
         Ok(basic_fetch!(self.users, id!(id)))
     }
 
+    pub async fn fetch_user_login(&self, id: String) -> Result<Option<(User, String)>> {
+        let Some(user): Option<DatabaseUser> = basic_fetch!(self.users, id!(id)) else {
+            return Ok(None)
+        };
+
+        let token = user.token.clone();
+
+        Ok(Some((user.into(), token)))
+    }
+
     pub async fn fetch_user_token(&self, token: String) -> Result<Option<User>> {
         Ok(basic_fetch!(self.users, eq!("token", token)))
     }

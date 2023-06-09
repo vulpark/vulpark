@@ -16,6 +16,8 @@ pub enum HttpError {
     MessageContentEmpty,
     ChannelAccessDenied,
     TooManyUsers,
+    AccountAttached,
+    AccountNotAttached,
     Oauth(AuthError),
     Other(String),
 }
@@ -28,6 +30,8 @@ impl ToString for HttpError {
             Self::MessageContentEmpty => "Message content is empty.".to_string(),
             Self::ChannelAccessDenied => "Channel access is denied".to_string(),
             Self::TooManyUsers => "Too many users with the same username".to_string(),
+            Self::AccountAttached => "This account is already attached to a user".to_string(),
+            Self::AccountNotAttached => "This account is not attached to a user".to_string(),
             Self::Oauth(err) => err.to_string(),
             Self::Other(msg) => msg.to_string(),
         }
