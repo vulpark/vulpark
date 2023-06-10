@@ -37,7 +37,7 @@ pub struct UserLoginResponse {
 
 impl User {
     pub async fn create(username: &str) -> Result<Option<(Self, String)>, Error> {
-        database().await.create_user(RestrictedString::space(username)).await
+        database().await.create_user(&RestrictedString::space(username)).await
     }
 }
 

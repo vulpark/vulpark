@@ -35,19 +35,19 @@ impl From<DatabaseUser> for User {
 }
 
 impl Database {
-    async fn create_user_internal(&self, username: String) -> Result<Option<DatabaseUser>> {
-        let mut discrim: u32 = rand::thread_rng().gen_range(1..9999);
+    async fn create_user_internal(&self, username: &str) -> Result<Option<DatabaseUser>> {
+        let mut discriminator: u32 = rand::thread_rng().gen_range(1..9999);
         let mut count = 1;
         while self
             .users
             .find_one(
-                doc! {"username": username.clone(), "discriminator": discrim},
+                eq!(username, discriminator),
                 None,
             )
             .await?
             .is_some()
         {
-            discrim = rand::thread_rng().gen_range(1..9999);
+            discriminator = rand::thread_rng().gen_range(1..9999);
             count += 1;
             if count == 9999 {
                 return Ok(None);
@@ -55,8 +55,8 @@ impl Database {
         }
         let user = DatabaseUser {
             _id: Ulid::new().to_string(),
-            username,
-            discriminator: discrim,
+            username: username.to_string(),
+            discriminator,
             token: Ulid::new().to_string(),
             gateway_connected: false,
         };
@@ -64,18 +64,18 @@ impl Database {
         Ok(Some(user))
     }
 
-    pub async fn create_user(&self, username: String) -> Result<Option<(User, String)>> {
+    pub async fn create_user(&self, username: &str) -> Result<Option<(User, String)>> {
         let Some(user) = self.create_user_internal(username).await? else {
             return Ok(None)
         };
         Ok(Some((user.clone().into(), user.token)))
     }
 
-    pub async fn fetch_user(&self, id: String) -> Result<Option<User>> {
+    pub async fn fetch_user(&self, id: &str) -> Result<Option<User>> {
         Ok(basic_fetch!(self.users, id!(id)))
     }
 
-    pub async fn fetch_user_login(&self, id: String) -> Result<Option<(User, String)>> {
+    pub async fn fetch_user_login(&self, id: &str) -> Result<Option<(User, String)>> {
         let Some(user): Option<DatabaseUser> = basic_fetch!(self.users, id!(id)) else {
             return Ok(None)
         };
@@ -85,7 +85,7 @@ impl Database {
         Ok(Some((user.into(), token)))
     }
 
-    pub async fn fetch_user_token(&self, token: String) -> Result<Option<User>> {
+    pub async fn fetch_user_token(&self, token: &str) -> Result<Option<User>> {
         Ok(basic_fetch!(self.users, eq!(token)))
     }
 

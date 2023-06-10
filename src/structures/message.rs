@@ -65,11 +65,11 @@ impl Message {
 
 impl MessageResponse {
     pub async fn from_message(message: Message, channel: Channel) -> Self {
-        let Some(id) = &message.author_id else {
+        let Some(user_id) = &message.author_id else {
             return Self::none(message, channel);
         };
 
-        let Some(user) = database().await.fetch_user(id.clone()).await.unwrap_or(None) else {
+        let Some(user) = database().await.fetch_user(&user_id).await.unwrap_or(None) else {
             return Self::none(message, channel);
         };
 

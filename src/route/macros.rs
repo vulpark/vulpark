@@ -34,7 +34,7 @@ pub macro not_found($name: expr) {
 
 pub macro with_login($token: expr) {
     expect!(
-        unwrap!(database().await.fetch_user_token($token.clone()).await),
+        unwrap!(database().await.fetch_user_token(&$token).await),
         StatusCode::FORBIDDEN,
         HttpError::InvalidLoginCredentials
     )

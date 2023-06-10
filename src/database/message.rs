@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::structures::message::Message;
 
 use super::{
-    macros::{after, basic_create, basic_fetch, before, id},
+    macros::{after, basic_create, basic_fetch, before, id, keyed},
     to_vec, Database,
 };
 
@@ -67,7 +67,7 @@ impl Database {
             return Ok(vec![]);
         };
 
-        let Ok(messages) = to_vec(self.messages.find(before!(timestamp, channel_id), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
+        let Ok(messages) = to_vec(self.messages.find(before!(timestamp, channel_id), FindOptions::builder().limit(max).sort(keyed!("created", -1)).build()).await?).await else {
             return Ok(vec![]);
         };
 

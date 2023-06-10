@@ -22,18 +22,44 @@ pub(super) macro basic_update($col: expr, $search: expr, $replace: expr) {
     }
 }
 
-pub(super) macro eq($val: expr) {
-    mongodb::bson::doc! {stringify!($val): $val}
+pub(super) macro eq($($val: expr),*) {
+    {
+        let mut doc = mongodb::bson::Document::new();
+        $(
+            doc.insert(stringify!($val), $val);
+        )*
+        doc
+    }
 }
 
-pub(super) macro id($id: expr) {
-    mongodb::bson::doc! { "_id": $id }
+pub(super) macro keyed($key: expr, $value: expr) {
+    {
+        let mut doc = mongodb::bson::Document::new();
+        doc.insert($key, $value);
+        doc
+    }
 }
 
-pub(super) macro before($time: expr, $id: expr) {
-    mongodb::bson::doc! {"created": {"$lt": $time}, stringify!($id): $id}
+
+pub(super) macro eq_keyed($key: expr, $value: expr $(, $($val: expr),*)?) {
+    {
+        let mut doc = mongodb::bson::Document::new();
+        doc.insert($key, $value);
+        $($(
+            doc.insert(stringify!($val), $val);
+        )*)?
+        doc
+    }
 }
 
-pub(super) macro after($time: expr, $id: expr) {
-    mongodb::bson::doc! {"created": {"$gt": $time}, stringify!($id): $id}
+pub(super) macro id($id: expr $(, $($val: expr),*)?) {
+    eq_keyed!("_id", $id $(, $($val,)*)?)
+}
+
+pub(super) macro before($time: expr $(, $($val: expr),*)?) {
+    eq_keyed!("created", eq_keyed!("lt", $time) $(, $($val),*)?)
+}
+
+pub(super) macro after($time: expr $(, $($val: expr),*)?) {
+    eq_keyed!("created", eq_keyed!("lt", $time) $(, $($val),*)?)
 }

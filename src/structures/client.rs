@@ -37,7 +37,7 @@ impl Client {
     }
 
     pub async fn set_user(&mut self, token: String) -> Option<User> {
-        let user = database().await.fetch_user_token(token.clone()).await;
+        let user = database().await.fetch_user_token(&token).await;
         let Ok(user) = user else {
             return None;
         };

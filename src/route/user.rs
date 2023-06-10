@@ -82,7 +82,7 @@ pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> 
         Err(error) => return err!(HttpError::Oauth(AuthError::Mongo(error)), StatusCode::INTERNAL_SERVER_ERROR)
     };
 
-    let Some(user) = unwrap!(database().await.fetch_user_login(login.user_id.clone()).await) else {
+    let Some(user) = unwrap!(database().await.fetch_user_login(&login.user_id).await) else {
         return not_found!("User")
     };
 
@@ -92,7 +92,7 @@ pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> 
 pub async fn fetch(user_id: String, token: String) -> ResponseResult<User> {
     with_login!(token);
 
-    let Some(user) = unwrap!(database().await.fetch_user(user_id.clone()).await) else {
+    let Some(user) = unwrap!(database().await.fetch_user(&user_id).await) else {
         return not_found!("User")
     };
 
