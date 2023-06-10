@@ -41,11 +41,10 @@ impl From<DatabaseChannel> for Channel {
 
 impl Database {
     pub async fn create_channel(&self, channel: Channel) -> Result<Channel> {
-        basic_create!(self.channels, DatabaseChannel::from, channel)?;
-        Ok(channel)
+        basic_create!(self.channels, DatabaseChannel::from, channel)
     }
 
     pub async fn fetch_channel(&self, id: String) -> Result<Option<Channel>> {
-        Ok(basic_fetch!(self.channels, id!(id)))
+        basic_fetch!(self.channels, id!(id))
     }
 }

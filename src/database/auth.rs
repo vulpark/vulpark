@@ -42,8 +42,7 @@ impl From<DatabaseLogin> for Login {
 
 impl Database {
     pub async fn create_login(&self, login: Login) -> Result<Login> {
-        basic_create!(self.logins, DatabaseLogin::from, login)?;
-        Ok(login)
+        basic_create!(self.logins, DatabaseLogin::from, login)
     }
 
     pub async fn fetch_logins(&self, user_id: String, service: Service) -> Result<Vec<Login>> {
@@ -56,6 +55,6 @@ impl Database {
 
     pub async fn fetch_login(&self, service: Service, service_user: String) -> Result<Option<Login>> {
         let service = service.to_string();
-        Ok(basic_fetch!(self.logins, eq!(service, service_user)))
+        basic_fetch!(self.logins, eq!(service, service_user))
     }
 }

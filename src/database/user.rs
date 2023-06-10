@@ -72,11 +72,12 @@ impl Database {
     }
 
     pub async fn fetch_user(&self, id: &str) -> Result<Option<User>> {
-        Ok(basic_fetch!(self.users, id!(id)))
+        basic_fetch!(self.users, id!(id))
     }
 
     pub async fn fetch_user_login(&self, id: &str) -> Result<Option<(User, String)>> {
-        let Some(user): Option<DatabaseUser> = basic_fetch!(self.users, id!(id)) else {
+        let user = basic_fetch!(self.users, id!(id))?;
+        let Some(user): Option<DatabaseUser> = user  else {
             return Ok(None)
         };
 
@@ -86,10 +87,10 @@ impl Database {
     }
 
     pub async fn fetch_user_token(&self, token: &str) -> Result<Option<User>> {
-        Ok(basic_fetch!(self.users, eq!(token)))
+        basic_fetch!(self.users, eq!(token))
     }
 
     pub async fn set_user_gateway_connected(&self, id: &str, gateway_connected: bool) -> Result<Option<User>> {
-        Ok(basic_update!(self.users, id!(id), eq!(gateway_connected)))
+        basic_update!(self.users, id!(id), eq!(gateway_connected))
     }
 }

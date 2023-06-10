@@ -49,12 +49,11 @@ impl From<DatabaseMessage> for Message {
 
 impl Database {
     pub async fn create_message(&self, message: Message) -> Result<Message> {
-        basic_create!(self.messages, DatabaseMessage::from, message)?;
-        Ok(message)
+        basic_create!(self.messages, DatabaseMessage::from, message)
     }
 
     pub async fn fetch_message(&self, id: String) -> Result<Option<Message>> {
-        Ok(basic_fetch!(self.messages, id!(id)))
+        basic_fetch!(self.messages, id!(id))
     }
 
     pub async fn fetch_messages_before(

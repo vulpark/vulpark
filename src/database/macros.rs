@@ -3,27 +3,36 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub(super) macro basic_create($col: expr, $fun: expr, $value: expr) {
-    $col.insert_one($fun(&$value), None).await
+    match $col.insert_one($fun(&$value), None).await {
+        Ok(_) => Ok($value),
+        Err(err) => Err(err),
+    }
 }
 
 pub(super) macro basic_fetch($col: expr, $search: expr) {
-    if let Some(val) = $col.find_one($search, None).await? {
-        Some(val.into())
-    } else {
-        None
+    match $col.find_one($search, None).await {
+        Ok(val) => {
+            if let Some(val) = val {
+                Ok(Some(val.into()))
+            } else {
+                Ok(None)
+            }
+        },
+        Err(err) => Err(err),
     }
 }
 
 pub(super) macro basic_update($col: expr, $search: expr, $replace: expr) {
-    if let Some(val) = $col.find_one_and_update($search, $replace, None).await? {
-        Some(val.into())
-    } else {
-        None
+    match $col.find_one_and_update($search, $replace, None).await {
+        Ok(val) => {
+            if let Some(val) = val {
+                Ok(Some(val.into()))
+            } else {
+                Ok(None)
+            }
+        },
+        Err(err) => Err(err),
     }
-}
-
-pub(super) macro eq($($val: expr),*) {
-    keyed!($(stringify!($val), $val),*)
 }
 
 pub(super) macro keyed($($key: expr, $value: expr),*) {
@@ -34,6 +43,10 @@ pub(super) macro keyed($($key: expr, $value: expr),*) {
         )*
         doc
     }
+}
+
+pub(super) macro eq($($val: expr),*) {
+    keyed!($(stringify!($val), $val),*)
 }
 
 pub(super) macro eq_keyed($key: expr, $value: expr $(, $($val: expr),*)?) {
