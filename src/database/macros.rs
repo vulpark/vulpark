@@ -49,5 +49,5 @@ pub(super) macro before($time: expr $(, $($val: expr),*)?) {
 }
 
 pub(super) macro after($time: expr $(, $($val: expr),*)?) {
-    eq_keyed!("created", keyed!("lt", $time) $(, $($val),*)?)
+    eq_keyed!("created", keyed!("gt", $time) $(, $($val),*)?)
 }
