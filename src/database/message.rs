@@ -67,7 +67,7 @@ impl Database {
             return Ok(vec![]);
         };
 
-        let Ok(messages) = to_vec(self.messages.find(before!(timestamp, "channel_id", channel_id), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
+        let Ok(messages) = to_vec(self.messages.find(before!(timestamp, channel_id), FindOptions::builder().limit(max).sort(doc! {"created": -1}).build()).await?).await else {
             return Ok(vec![]);
         };
 
@@ -84,7 +84,7 @@ impl Database {
             return Ok(vec![]);
         };
 
-        let Ok(messages) = to_vec(self.messages.find(after!(timestamp, "channel_id", channel_id), FindOptions::builder().limit(max).build()).await?).await else {
+        let Ok(messages) = to_vec(self.messages.find(after!(timestamp, channel_id), FindOptions::builder().limit(max).build()).await?).await else {
             return Ok(vec![]);
         };
 

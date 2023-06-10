@@ -86,10 +86,10 @@ impl Database {
     }
 
     pub async fn fetch_user_token(&self, token: String) -> Result<Option<User>> {
-        Ok(basic_fetch!(self.users, eq!("token", token)))
+        Ok(basic_fetch!(self.users, eq!(token)))
     }
 
     pub async fn set_user_gateway_connected(&self, id: &str, gateway_connected: bool) -> Result<Option<User>> {
-        Ok(basic_update!(self.users, id!(id), eq!("gateway_connected", gateway_connected)))
+        Ok(basic_update!(self.users, id!(id), eq!(gateway_connected)))
     }
 }

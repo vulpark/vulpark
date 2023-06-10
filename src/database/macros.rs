@@ -22,18 +22,18 @@ pub(super) macro basic_update($col: expr, $search: expr, $replace: expr) {
     }
 }
 
-pub(super) macro eq($a: expr, $b: expr) {
-    mongodb::bson::doc! {$a: $b}
+pub(super) macro eq($val: expr) {
+    mongodb::bson::doc! {stringify!($val): $val}
 }
 
 pub(super) macro id($id: expr) {
-    eq!("_id", $id)
+    mongodb::bson::doc! { "_id": $id }
 }
 
-pub(super) macro before($time: expr, $id_name: expr, $id: expr) {
-    mongodb::bson::doc! {"created": {"$lt": $time}, $id_name: $id}
+pub(super) macro before($time: expr, $id: expr) {
+    mongodb::bson::doc! {"created": {"$lt": $time}, stringify!($id): $id}
 }
 
-pub(super) macro after($time: expr, $id_name: expr, $id: expr) {
-    mongodb::bson::doc! {"created": {"$gt": $time}, $id_name: $id}
+pub(super) macro after($time: expr, $id: expr) {
+    mongodb::bson::doc! {"created": {"$gt": $time}, stringify!($id): $id}
 }
