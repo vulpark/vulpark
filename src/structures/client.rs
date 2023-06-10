@@ -49,10 +49,13 @@ impl Client {
 
     pub async fn remove_from(&self, clients: ClientHolder) -> Option<()> {
         let mut lock = with_lock!(clients);
-        let id = self.user_id.clone()?;
-        let clients = lock.get_mut(&id)?;
+        let id = &self.user_id.clone()?;
+        let clients = lock.get_mut(id)?;
         let index = clients.iter().position(|it| it.id == self.id)?;
         clients.remove(index);
+        if clients.is_empty() {
+            let _ = database().await.set_user_gateway_connected(id, false).await;
+        }
         Some(())
     }
 }

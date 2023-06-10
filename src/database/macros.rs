@@ -6,8 +6,16 @@ pub(super) macro basic_create($col: expr, $fun: expr, $value: expr) {
     $col.insert_one($fun(&$value), None).await
 }
 
-pub(super) macro basic_fetch($col: expr, $id: expr) {
-    if let Some(val) = $col.find_one($id, None).await? {
+pub(super) macro basic_fetch($col: expr, $search: expr) {
+    if let Some(val) = $col.find_one($search, None).await? {
+        Some(val.into())
+    } else {
+        None
+    }
+}
+
+pub(super) macro basic_update($col: expr, $search: expr, $replace: expr) {
+    if let Some(val) = $col.find_one_and_update($search, $replace, None).await? {
         Some(val.into())
     } else {
         None

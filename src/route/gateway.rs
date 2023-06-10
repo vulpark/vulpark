@@ -16,7 +16,7 @@ use crate::{
         event::Event,
         event::ReceivedEvent,
     },
-    with_lock,
+    with_lock, database,
 };
 
 pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
@@ -65,6 +65,7 @@ async fn handle_event(
                 return None;
             }
             let user = client.set_user(token.clone()).await?;
+            let _ = database().await.set_user_gateway_connected(&user.id, true).await;
             {
                 let mut lock = with_lock!(clients);
                 if let Some(clients) = lock.get_mut(&user.id) {

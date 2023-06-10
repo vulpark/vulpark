@@ -11,16 +11,17 @@ use ulid::Ulid;
 use crate::structures::user::User;
 
 use super::{
-    macros::{basic_fetch, eq, id},
+    macros::{basic_fetch, eq, id, basic_update},
     Database,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseUser {
-    pub(super) _id: String,
-    pub(super) username: String,
-    pub(super) discriminator: u32,
-    pub(super) token: String,
+    pub _id: String,
+    pub username: String,
+    pub discriminator: u32,
+    pub token: String,
+    pub gateway_connected: bool,
 }
 
 impl From<DatabaseUser> for User {
@@ -57,6 +58,7 @@ impl Database {
             username,
             discriminator: discrim,
             token: Ulid::new().to_string(),
+            gateway_connected: false,
         };
         self.users.insert_one(user.clone(), None).await?;
         Ok(Some(user))
@@ -85,5 +87,9 @@ impl Database {
 
     pub async fn fetch_user_token(&self, token: String) -> Result<Option<User>> {
         Ok(basic_fetch!(self.users, eq!("token", token)))
+    }
+
+    pub async fn set_user_gateway_connected(&self, id: &str, gateway_connected: bool) -> Result<Option<User>> {
+        Ok(basic_update!(self.users, id!(id), eq!("gateway_connected", gateway_connected)))
     }
 }
