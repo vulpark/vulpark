@@ -7,9 +7,9 @@ use warp::hyper::StatusCode;
 use crate::{
     database,
     structures::{
-        auth::{Login, AuthError},
+        auth::{AuthError, Login},
         error::ResponseResult,
-        user::{User, UserCreateRequest, UserLoginResponse, UserLoginRequest},
+        user::{User, UserCreateRequest, UserLoginRequest, UserLoginResponse},
     },
 };
 
@@ -41,11 +41,17 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
     };
 
     match database().await.fetch_login(service, uid.clone()).await {
-        Ok(login) => match login {
-            Some(_) => return err!(HttpError::AccountAttached, StatusCode::FORBIDDEN),
-            None => {}
-        },
-        Err(error) => return err!(HttpError::Oauth(AuthError::Mongo(error)), StatusCode::INTERNAL_SERVER_ERROR)
+        Ok(login) => {
+            if login.is_some() {
+                return err!(HttpError::AccountAttached, StatusCode::FORBIDDEN);
+            }
+        }
+        Err(error) => {
+            return err!(
+                HttpError::Oauth(AuthError::Mongo(error)),
+                StatusCode::INTERNAL_SERVER_ERROR
+            )
+        }
     }
 
     let user = expect!(
@@ -77,9 +83,14 @@ pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> 
     let login = match database().await.fetch_login(service, uid.clone()).await {
         Ok(login) => match login {
             Some(login) => login,
-            None => return err!(HttpError::AccountNotAttached, StatusCode::FORBIDDEN)
+            None => return err!(HttpError::AccountNotAttached, StatusCode::FORBIDDEN),
         },
-        Err(error) => return err!(HttpError::Oauth(AuthError::Mongo(error)), StatusCode::INTERNAL_SERVER_ERROR)
+        Err(error) => {
+            return err!(
+                HttpError::Oauth(AuthError::Mongo(error)),
+                StatusCode::INTERNAL_SERVER_ERROR
+            )
+        }
     };
 
     let Some(user) = unwrap!(database().await.fetch_user_login(&login.user_id).await) else {

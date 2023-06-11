@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::structures::auth::{Login, Service};
 
-use super::{macros::{basic_create, basic_fetch, eq}, to_vec, Database};
+use super::{
+    macros::{basic_create, basic_fetch, eq},
+    to_vec, Database,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatabaseLogin {
@@ -53,7 +56,11 @@ impl Database {
         Ok(vec.into_iter().map(Into::into).collect())
     }
 
-    pub async fn fetch_login(&self, service: Service, service_user: String) -> Result<Option<Login>> {
+    pub async fn fetch_login(
+        &self,
+        service: Service,
+        service_user: String,
+    ) -> Result<Option<Login>> {
         let service = service.to_string();
         basic_fetch!(self.logins, eq!(service, service_user))
     }

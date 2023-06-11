@@ -11,7 +11,7 @@ use ulid::Ulid;
 use crate::structures::user::User;
 
 use super::{
-    macros::{basic_fetch, eq, id, basic_update},
+    macros::{basic_fetch, basic_update, eq, id},
     Database,
 };
 
@@ -38,12 +38,10 @@ impl Database {
     async fn create_user_internal(&self, username: &str) -> Result<Option<DatabaseUser>> {
         let mut discriminator: u32 = rand::thread_rng().gen_range(1..9999);
         let mut count = 1;
+
         while self
             .users
-            .find_one(
-                eq!(username, discriminator),
-                None,
-            )
+            .find_one(eq!(username, discriminator), None)
             .await?
             .is_some()
         {
@@ -53,6 +51,7 @@ impl Database {
                 return Ok(None);
             }
         }
+
         let user = DatabaseUser {
             _id: Ulid::new().to_string(),
             username: username.to_string(),
@@ -60,7 +59,9 @@ impl Database {
             token: Ulid::new().to_string(),
             gateway_connected: false,
         };
+
         self.users.insert_one(user.clone(), None).await?;
+
         Ok(Some(user))
     }
 
@@ -68,6 +69,7 @@ impl Database {
         let Some(user) = self.create_user_internal(username).await? else {
             return Ok(None)
         };
+
         Ok(Some((user.clone().into(), user.token)))
     }
 
@@ -76,8 +78,7 @@ impl Database {
     }
 
     pub async fn fetch_user_login(&self, id: &str) -> Result<Option<(User, String)>> {
-        let user = basic_fetch!(self.users, id!(id))?;
-        let Some(user): Option<DatabaseUser> = user  else {
+        let Some(user): Option<DatabaseUser> = basic_fetch!(self.users, id!(id))? else {
             return Ok(None)
         };
 
@@ -90,7 +91,11 @@ impl Database {
         basic_fetch!(self.users, eq!(token))
     }
 
-    pub async fn set_user_gateway_connected(&self, id: &str, gateway_connected: bool) -> Result<Option<User>> {
+    pub async fn set_user_gateway_connected(
+        &self,
+        id: &str,
+        gateway_connected: bool,
+    ) -> Result<Option<User>> {
         basic_update!(self.users, id!(id), eq!(gateway_connected))
     }
 }

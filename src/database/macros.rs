@@ -17,7 +17,7 @@ pub(super) macro basic_fetch($col: expr, $search: expr) {
             } else {
                 Ok(None)
             }
-        },
+        }
         Err(err) => Err(err),
     }
 }
@@ -30,7 +30,7 @@ pub(super) macro basic_update($col: expr, $search: expr, $replace: expr) {
             } else {
                 Ok(None)
             }
-        },
+        }
         Err(err) => Err(err),
     }
 }

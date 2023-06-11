@@ -16,7 +16,7 @@ impl RestrictedString {
     pub fn space(value: &str) -> String {
         Self::trim(Self::filter(value, " "))
     }
-    
+
     pub fn no_space(value: &str) -> String {
         Self::trim(Self::filter(value, "-"))
     }

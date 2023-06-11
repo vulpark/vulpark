@@ -69,7 +69,7 @@ impl MessageResponse {
             return Self::none(message, channel);
         };
 
-        let Some(user) = database().await.fetch_user(&user_id).await.unwrap_or(None) else {
+        let Some(user) = database().await.fetch_user(user_id).await.unwrap_or(None) else {
             return Self::none(message, channel);
         };
 
