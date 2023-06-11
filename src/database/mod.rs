@@ -6,6 +6,7 @@
 
 mod auth;
 mod channel;
+mod guild;
 mod macros;
 mod message;
 mod user;
@@ -17,37 +18,40 @@ use mongodb::{error::Result, options::ClientOptions, Client, Collection};
 
 use self::auth::DatabaseLogin;
 use self::channel::DatabaseChannel;
+use self::guild::DatabaseGuild;
 use self::message::DatabaseMessage;
 use self::user::DatabaseUser;
 
-#[allow(dead_code)]
-pub struct Database {
-    client: Client,
-    db: mongodb::Database,
-    messages: Collection<DatabaseMessage>,
-    channels: Collection<DatabaseChannel>,
-    users: Collection<DatabaseUser>,
-    logins: Collection<DatabaseLogin>,
+/// This is using old syntax because it doesn't work with new syntax.
+macro_rules! db {
+    { $( $i: ident : $t: ty ),* $(,)? } => {
+        pub struct Database {
+            $(
+                pub $i : Collection<$t>,
+            )*
+        }
+
+        impl Database {
+            pub async fn create() -> Result<Self> {
+                let client_options = ClientOptions::parse("mongodb://localhost:27017").await?;
+                let client = Client::with_options(client_options)?;
+                let db = client.database("vulpark");
+                Ok(Self {
+                    $(
+                        $i: db.collection(stringify!($i)),
+                    )*
+                })
+            }
+        }
+    };
 }
 
-impl Database {
-    pub async fn create() -> Result<Self> {
-        let client_options = ClientOptions::parse("mongodb://localhost:27017").await?;
-        let client = Client::with_options(client_options)?;
-        let db = client.database("rschat");
-        let messages = db.collection("messages");
-        let channels = db.collection("channels");
-        let users = db.collection("users");
-        let logins = db.collection("logins");
-        Ok(Self {
-            client,
-            db,
-            messages,
-            channels,
-            users,
-            logins,
-        })
-    }
+db! {
+    messages: DatabaseMessage,
+    channels: DatabaseChannel,
+    users: DatabaseUser,
+    logins: DatabaseLogin,
+    guilds: DatabaseGuild,
 }
 
 pub async fn to_vec<T>(

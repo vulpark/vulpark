@@ -7,6 +7,7 @@ pub mod channel;
 pub mod client;
 pub mod error;
 pub mod event;
+pub mod guild;
 pub mod message;
 pub mod response;
 pub mod restricted_string;
