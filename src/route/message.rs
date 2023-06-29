@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use warp::hyper::StatusCode;
+use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
 use crate::{
     database, map_async,
@@ -16,8 +16,35 @@ use crate::{
 
 use super::{
     macros::{err, not_found, ok, unwrap, with_login},
-    ClientHolder, HttpError,
+    with_auth, with_clients, ClientHolder, HttpError,
 };
+
+pub fn routes(
+    clients: &ClientHolder,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    let create = warp::post()
+        .and(with_auth())
+        .and(warp::body::json())
+        .and(with_clients(clients.clone()))
+        .and_then(create);
+
+    let fetch_single = warp::get()
+        .and(with_auth())
+        .and(warp::path::param())
+        .and_then(fetch_single);
+
+    let fetch_before = warp::get()
+        .and(with_auth())
+        .and(warp::query())
+        .and_then(fetch_before);
+
+    let fetch_after = warp::get()
+        .and(with_auth())
+        .and(warp::query())
+        .and_then(fetch_after);
+
+    warp::path("messages").and(create.or(fetch_single).or(fetch_before).or(fetch_after))
+}
 
 pub async fn create(
     token: String,
@@ -34,7 +61,7 @@ pub async fn create(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users();
+    let users = channel.get_users().await.unwrap_or(vec![]);
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -50,15 +77,11 @@ pub async fn create(
         .await
     );
 
-    let event = Event::MessageCreate {
-        message: message.clone(),
-        author: Some(user.clone()),
-        channel: channel.clone(),
-    };
+    let resp = MessageResponse::from(message, channel, Some(user));
 
-    with_lock!(clients).dispatch_users(users, &event);
+    with_lock!(clients).dispatch_users(users, &Event::MessageCreate(resp.clone()));
 
-    ok!(MessageResponse::from(message, channel, Some(user)))
+    ok!(resp)
 }
 
 pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
@@ -72,7 +95,7 @@ pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageRe
         return not_found!("Channel")
     };
 
-    let users = channel.get_users();
+    let users = channel.get_users().await.unwrap_or(vec![]);
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -91,7 +114,7 @@ pub async fn fetch_before(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users();
+    let users = channel.get_users().await.unwrap_or(vec![]);
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);
@@ -127,7 +150,7 @@ pub async fn fetch_after(
         return not_found!("Channel")
     };
 
-    let users = channel.get_users();
+    let users = channel.get_users().await.unwrap_or(vec![]);
 
     if !users.contains(&user.id) {
         return err!(HttpError::ChannelAccessDenied, StatusCode::FORBIDDEN);

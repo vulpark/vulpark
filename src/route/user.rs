@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use warp::hyper::StatusCode;
+use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
 use crate::{
     database,
@@ -15,16 +15,20 @@ use crate::{
 
 use super::{
     macros::{err, expect, not_found, ok, unwrap, with_login},
-    HttpError,
+    with_auth, HttpError,
 };
 
-impl From<(User, String)> for UserLoginResponse {
-    fn from(value: (User, String)) -> Self {
-        Self {
-            user: value.0,
-            token: value.1,
-        }
-    }
+pub fn routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    let create = warp::post().and(warp::body::json()).and_then(create);
+
+    let login = warp::get().and(warp::body::json()).and_then(login);
+
+    let fetch = warp::get()
+        .and(warp::path::param())
+        .and(with_auth())
+        .and_then(fetch);
+
+    warp::path("users").and(create.or(login).or(fetch))
 }
 
 pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse> {

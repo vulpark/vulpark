@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{
     ws::{WebSocket, Ws},
-    Rejection, Reply,
+    Filter, Rejection, Reply,
 };
 
 use crate::{
@@ -19,6 +19,17 @@ use crate::{
     },
     with_lock,
 };
+
+use super::with_clients;
+
+pub fn routes(
+    clients: &ClientHolder,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path("gateway")
+        .and(warp::ws())
+        .and(with_clients(clients.clone()))
+        .and_then(gateway)
+}
 
 pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
@@ -36,7 +47,7 @@ async fn handle_conn(ws: WebSocket, clients: ClientHolder, mut client: Client) {
 
     client.sender = Some(client_sender);
 
-    client.send(&Event::HandshakeStart {});
+    client.send(&Event::HandshakeStart);
 
     while let Some(result) = client_ws_rcv.next().await {
         let Ok(msg) = result else {

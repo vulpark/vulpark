@@ -11,6 +11,8 @@ mod macros;
 mod message;
 mod user;
 
+pub use guild::DatabaseGuildResponse;
+
 use futures::stream::TryStreamExt;
 use futures::TryStream;
 use mongodb::Cursor;

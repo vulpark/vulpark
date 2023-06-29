@@ -21,6 +21,7 @@ pub struct DatabaseUser {
     pub username: String,
     pub discriminator: u32,
     pub token: String,
+    pub guilds: Vec<String>,
     pub gateway_connected: bool,
 }
 
@@ -31,6 +32,12 @@ impl From<DatabaseUser> for User {
             username: value.username,
             discriminator: value.discriminator,
         }
+    }
+}
+
+impl From<&DatabaseUser> for User {
+    fn from(value: &DatabaseUser) -> Self {
+        User::from(value.clone())
     }
 }
 
@@ -57,6 +64,7 @@ impl Database {
             username: username.to_string(),
             discriminator,
             token: Ulid::new().to_string(),
+            guilds: vec![],
             gateway_connected: false,
         };
 

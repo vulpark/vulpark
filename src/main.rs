@@ -7,7 +7,8 @@
     async_closure,
     decl_macro,
     fn_traits,
-    let_chains
+    let_chains,
+    try_trait_v2
 )]
 #![allow(clippy::module_name_repetitions, clippy::unused_async)]
 

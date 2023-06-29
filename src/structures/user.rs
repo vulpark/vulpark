@@ -49,3 +49,12 @@ impl ToString for User {
         format!("{}:{}", self.username, self.discriminator)
     }
 }
+
+impl From<(User, String)> for UserLoginResponse {
+    fn from(value: (User, String)) -> Self {
+        Self {
+            user: value.0,
+            token: value.1,
+        }
+    }
+}

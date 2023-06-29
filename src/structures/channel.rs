@@ -9,7 +9,7 @@ use serde::{
     Deserialize, Serialize,
 };
 
-use crate::{database, generate_ulid};
+use crate::{database, database::DatabaseGuildResponse, generate_ulid};
 
 use super::restricted_string::RestrictedString;
 
@@ -23,6 +23,7 @@ pub struct Channel {
 #[derive(Debug, Clone)]
 pub enum ChannelLocation {
     Dm { members: Vec<String> },
+    Guild { guild: String },
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,10 +50,18 @@ impl Channel {
         database().await.create_channel(self).await
     }
 
-    pub fn get_users(&self) -> Vec<String> {
-        match &self.location {
+    pub async fn get_users(&self) -> DatabaseGuildResponse<Vec<String>> {
+        DatabaseGuildResponse::Ok(match &self.location {
             ChannelLocation::Dm { members } => members.clone(),
-        }
+            ChannelLocation::Guild { guild } => database()
+                .await
+                .fetch_guild_users(guild)
+                .await
+                .unwrap_or(DatabaseGuildResponse::NoGuild)?
+                .iter()
+                .map(|it| it.id.clone())
+                .collect(),
+        })
     }
 }
 
@@ -66,6 +75,12 @@ impl Serialize for ChannelLocation {
                 let mut ser = serializer.serialize_struct("ChannelLocation", 2)?;
                 ser.serialize_field("type", "dm")?;
                 ser.serialize_field("members", members)?;
+                ser.end()
+            }
+            Self::Guild { guild } => {
+                let mut ser = serializer.serialize_struct("ChannelLocation", 2)?;
+                ser.serialize_field("type", "guild")?;
+                ser.serialize_field("id", guild)?;
                 ser.end()
             }
         }
@@ -96,10 +111,12 @@ impl<'de> Visitor<'de> for LocationVisitor {
     {
         let mut name: Option<&str> = None;
         let mut members: Vec<String> = vec![];
+        let mut id: Option<String> = None;
         while let Some(key) = map.next_key::<&str>()? {
             match key {
                 "type" => name = Some(map.next_value()?),
                 "members" => members = map.next_value()?,
+                "id" => id = Some(map.next_value()?),
                 _ => {}
             }
         }
@@ -108,7 +125,14 @@ impl<'de> Visitor<'de> for LocationVisitor {
         };
         match name {
             "dm" => Ok(ChannelLocation::Dm { members }),
-            _ => Err(de::Error::unknown_variant("type", &["dm"])),
+            "guild" => {
+                if let Some(id) = id {
+                    Ok(ChannelLocation::Guild { guild: id })
+                } else {
+                    Err(de::Error::missing_field("id"))
+                }
+            }
+            _ => Err(de::Error::unknown_variant("type", &["dm", "guild"])),
         }
     }
 }
