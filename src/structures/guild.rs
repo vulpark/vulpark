@@ -37,7 +37,10 @@ impl Guild {
 
     pub async fn insert(self) -> mongodb::error::Result<Self> {
         let guild = database().await.create_guild(self).await?;
-        database().await.join_guild(&guild.id, &guild.owner_id).await?;
+        database()
+            .await
+            .join_guild(&guild.id, &guild.owner_id)
+            .await?;
         Ok(guild)
     }
 }

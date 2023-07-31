@@ -1,4 +1,5 @@
 # vulpark
+
 A vulpine gathering.
 
 This is HEAVILY work in progress
@@ -8,6 +9,7 @@ Needs MongoDB installed locally and on port 27017 (default)
 Don't ask for help I don't know how any of this works
 
 ## outline
+
 - ~~fake users~~
 - ~~send messages from user to user~~
 - ~~store messages in database~~

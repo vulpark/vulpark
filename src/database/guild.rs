@@ -8,12 +8,12 @@ use mongodb::error::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    database::macros::id,
+    database::macros::{eq_keyed, id},
     structures::{guild::Guild, user::User},
 };
 
 use super::{
-    macros::{basic_create, basic_fetch, keyed},
+    macros::{basic_create, basic_fetch, basic_update, keyed},
     to_vec,
     user::DatabaseUser,
     Database,
@@ -91,6 +91,32 @@ impl Database {
         Ok(DatabaseGuildResponse::Ok(
             v.iter().map(User::from).collect(),
         ))
+    }
+
+    pub async fn fetch_guilds_from_user(
+        &self,
+        user: &str,
+    ) -> Result<DatabaseGuildResponse<Vec<Guild>>> {
+        let Some(user): Option<DatabaseUser> = basic_fetch!(self.users, id!(user))? else {
+            return Ok(DatabaseGuildResponse::NoUser)
+        };
+
+        let mut guilds = vec![];
+        let mut user_guilds = vec![];
+
+        for id in &user.guilds {
+            if let Some(guild) = self.fetch_guild(id).await? {
+                guilds.push(guild);
+                user_guilds.push(id);
+            }
+        }
+
+        if guilds.len() != user.guilds.len() {
+            let _: Option<User> =
+                basic_update!(self.users, id!(user._id), eq_keyed!("guilds", user_guilds))?;
+        }
+
+        Ok(DatabaseGuildResponse::Ok(guilds))
     }
 
     pub async fn join_guild(&self, id: &str, user: &str) -> Result<DatabaseGuildResponse<User>> {
