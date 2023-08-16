@@ -5,9 +5,14 @@
 use std::{fs, path::Path};
 
 fn main() {
+    #[cfg(windows)]
+    const LINE_ENDING: &'static str = "\r\n";
+    #[cfg(not(windows))]
+    const LINE_ENDING: &'static str = "\n";
+    
     let header = include_str!("./license_header")
-        .split('\n')
-        .map(|it| format!("// {it}\n"))
+        .split(LINE_ENDING)
+        .map(|it| format!("// {it}{LINE_ENDING}"))
         .reduce(|acc, line| format!("{acc}{line}"))
         .unwrap();
     let _ = visit_files(Path::new("src"), &header);
