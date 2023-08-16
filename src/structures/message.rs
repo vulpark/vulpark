@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use mongodb::error::Error;
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
@@ -11,7 +12,7 @@ use crate::database;
 
 use super::{channel::Channel, user::User};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Schema)]
 pub struct Message {
     pub id: String,
     pub channel_id: String,
@@ -20,27 +21,27 @@ pub struct Message {
     pub created: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct MessageCreate {
     pub channel_id: String,
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Schema)]
 pub struct MessageResponse {
     pub message: Message,
     pub channel: Channel,
     pub author: Option<User>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct MessageFetchBefore {
     pub channel: String,
     pub before: String,
     pub max: Option<i64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct MessageFetchAfter {
     pub channel: String,
     pub after: String,

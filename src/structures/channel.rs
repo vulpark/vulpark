@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use mongodb::error::Error;
+use rweb::Schema;
 use serde::{
     de::{self, Visitor},
     ser::SerializeStruct,
@@ -13,26 +14,26 @@ use crate::{database, database::DatabaseGuildResponse, generate_ulid};
 
 use super::restricted_string::RestrictedString;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct Channel {
     pub id: String,
     pub name: String,
     pub location: ChannelLocation,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Schema)]
 pub enum ChannelLocation {
     Dm { members: Vec<String> },
     Guild { guild: String },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct ChannelCreate {
     pub name: String,
     pub location: ChannelLocation,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Schema)]
 pub struct ChannelResponse {
     pub channel: Channel,
 }

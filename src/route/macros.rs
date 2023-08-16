@@ -9,14 +9,14 @@ use crate::database;
 use super::{HttpError, Response};
 
 pub macro ok($data: expr) {
-    Ok(warp::reply::with_status(
+    Ok(crate::structures::with_status(
         Response::success($data),
         StatusCode::OK,
     ))
 }
 
 pub macro err($message: expr, $status: expr) {
-    Ok(warp::reply::with_status(
+    Ok(crate::structures::with_status(
         Response::Error {
             status_code: $status.as_u16(),
             message: $message,

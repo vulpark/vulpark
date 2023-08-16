@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use futures::StreamExt;
+use rweb::*;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{
@@ -20,18 +21,17 @@ use crate::{
     with_lock,
 };
 
-use super::with_clients;
-
 pub fn routes(
     clients: &ClientHolder,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path("gateway")
-        .and(warp::ws())
-        .and(with_clients(clients.clone()))
-        .and_then(gateway)
+    gateway(clients.clone())
 }
 
-pub async fn gateway(ws: Ws, clients: ClientHolder) -> Result<impl Reply, Rejection> {
+#[get("/gateway")]
+pub async fn gateway(
+    #[filter = "ws"] ws: Ws,
+    #[data] clients: ClientHolder
+) -> Result<impl Reply, Rejection> {
     Ok(ws.on_upgrade(move |socket| {
         let client = Client::empty();
         handle_conn(socket, clients, client)

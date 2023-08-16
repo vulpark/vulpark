@@ -3,33 +3,34 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use mongodb::error::Error;
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::database;
 
 use super::{auth::Service, restricted_string::RestrictedString};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct User {
     pub id: String,
     pub username: String,
     pub discriminator: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct UserCreateRequest {
     pub username: String,
     pub service: Service,
     pub oauth_code: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct UserLoginRequest {
     pub service: Service,
     pub oauth_code: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Schema)]
 pub struct UserLoginResponse {
     pub user: User,
     pub token: String,

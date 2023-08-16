@@ -20,6 +20,10 @@ regex = "1.8.3"
 dotenv = "0.15.0"
 reqwest = "0.11.18"
 
+[dependencies.rweb]
+version = "0.15.0"
+features = ["openapi"]
+
 [dependencies.serde]
 version = "1.0.163"
 features = ["derive"]

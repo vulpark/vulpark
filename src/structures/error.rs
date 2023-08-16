@@ -2,14 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::Schema;
 use serde::Serialize;
-use warp::{reply::WithStatus, Rejection};
+use warp::Rejection;
 
-use super::{auth::AuthError, response::Response};
+use super::{auth::AuthError, response::Response, WithStatus};
 
 pub type ResponseResult<T> = Result<WithStatus<Response<T>>, Rejection>;
 
-#[derive(Debug)]
+#[derive(Debug, Schema)]
 pub enum HttpError {
     InvalidLoginCredentials,
     NotFound(String),

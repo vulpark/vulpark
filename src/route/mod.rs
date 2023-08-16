@@ -10,7 +10,7 @@ mod message;
 mod user;
 
 use reqwest::StatusCode;
-use std::convert::Infallible;
+use rweb::openapi;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use warp::reject::{MethodNotAllowed, MissingHeader};
@@ -26,15 +26,18 @@ use self::macros::{err, not_found};
 pub async fn init() {
     let clients: ClientHolder = Arc::new(Mutex::new(Clients(HashMap::new())));
 
-    let routes = gateway::routes(&clients)
-        .or(message::routes(&clients))
-        .or(channel::routes(&clients))
-        .or(user::routes())
-        .or(guild::routes())
-        .recover(recover)
-        .with(warp::cors().allow_any_origin());
+    //TODO: Figure out what to do with spec
+    let (_spec, filter) = openapi::spec().build(|| {
+        gateway::routes(&clients)
+            .or(message::routes(&clients))
+            .or(channel::routes(&clients))
+            .or(user::routes())
+            .or(guild::routes())
+            .recover(recover)
+            .with(warp::cors().allow_any_origin())
+    });
 
-    warp::serve(routes).run(([127, 0, 0, 1], 8000)).await;
+    warp::serve(filter).run(([127, 0, 0, 1], 8000)).await;
 }
 
 async fn recover(rejection: Rejection) -> ResponseResult<()> {
@@ -66,14 +69,4 @@ async fn recover(rejection: Rejection) -> ResponseResult<()> {
         )),
         StatusCode::INTERNAL_SERVER_ERROR
     )
-}
-
-fn with_auth() -> impl warp::Filter<Extract = (String,), Error = Rejection> + Copy {
-    warp::header("Authorization")
-}
-
-fn with_clients(
-    clients: ClientHolder,
-) -> impl Filter<Extract = (ClientHolder,), Error = Infallible> + Clone {
-    warp::any().map(move || clients.clone())
 }

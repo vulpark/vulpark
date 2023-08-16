@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::{Schema, openapi::{ResponseEntity, Entity, Responses}};
 use serde::{ser::SerializeStruct, Serialize};
 use warp::Reply;
 
 use super::error::HttpError;
 
-#[derive(Debug)]
+#[derive(Debug, Schema)]
 pub enum Response<T>
 where
     T: Serialize,
@@ -68,5 +69,12 @@ where
 {
     fn into_response(self) -> warp::reply::Response {
         self.to_string().into_response()
+    }
+}
+
+impl <T: Entity + Serialize> ResponseEntity for Response<T> {
+    fn describe_responses(comp_d: &mut rweb::openapi::ComponentDescriptor) -> Responses {
+        let resp = Responses::new();
+        resp
     }
 }

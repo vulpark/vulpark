@@ -8,6 +8,7 @@ use super::{channel::ChannelResponse, guild::GuildResponse, message::MessageResp
 
 macro_rules! event {
     ($($name:ident $({ $($n: ident: $t_1:ty),* $(,)? })? $(($t_2:ty))? ),+ $(,)?) => {
+        #[derive(rweb::Schema)]
         pub enum Event {
             $(
                 $name $({$($n: $t_1)*})? $(($t_2))?

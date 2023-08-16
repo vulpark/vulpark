@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::*;
 use warp::{Filter, Rejection, Reply};
 
 use crate::{
@@ -13,20 +14,19 @@ use crate::{
     },
 };
 
-use super::with_auth;
-
 pub fn routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let create = warp::post()
-        .and(with_auth())
-        .and(warp::body::json())
-        .and_then(create);
+    let create = create();
 
-    let fetch_all = warp::get().and(with_auth()).and_then(fetch_all);
+    let fetch_all = fetch_all();
 
-    warp::path("guilds").and(create.or(fetch_all))
+    create.or(fetch_all)
 }
 
-pub async fn create(token: String, create: GuildCreate) -> ResponseResult<GuildResponse> {
+#[post("/guilds")]
+pub async fn create(
+    #[header = "Authentication"] token: String,
+    #[json] create: GuildCreate
+) -> ResponseResult<GuildResponse> {
     let user = with_login!(token);
 
     let guild = unwrap!(Guild::new(&create.name, &user.id).insert().await);
@@ -36,7 +36,10 @@ pub async fn create(token: String, create: GuildCreate) -> ResponseResult<GuildR
     ok!(resp)
 }
 
-pub async fn fetch_all(token: String) -> ResponseResult<Vec<GuildResponse>> {
+#[get("/guilds")]
+pub async fn fetch_all(
+    #[header = "Authentication"] token: String
+) -> ResponseResult<Vec<GuildResponse>> {
     let user = with_login!(token);
 
     let guilds = unwrap!(database().await.fetch_guilds_from_user(&user.id).await)

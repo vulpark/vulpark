@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::*;
 use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
 use crate::{
     database,
     structures::{
-        auth::{AuthError, Login},
+        auth::Login,
         error::ResponseResult,
         user::{User, UserCreateRequest, UserLoginRequest, UserLoginResponse},
     },
@@ -15,23 +16,17 @@ use crate::{
 
 use super::{
     macros::{err, expect, not_found, ok, unwrap, with_login},
-    with_auth, HttpError,
+    HttpError,
 };
 
 pub fn routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let create = warp::post().and(warp::body::json()).and_then(create);
-
-    let login = warp::get().and(warp::body::json()).and_then(login);
-
-    let fetch = warp::get()
-        .and(warp::path::param())
-        .and(with_auth())
-        .and_then(fetch);
-
-    warp::path("users").and(create.or(login).or(fetch))
+    create().or(fetch()).or(login())
 }
 
-pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse> {
+#[post("/users")]
+pub async fn create(
+    #[json] user: UserCreateRequest
+) -> ResponseResult<UserLoginResponse> {
     let service = user.service;
 
     let token = match service.fetch_token(&user.oauth_code).await {
@@ -52,7 +47,7 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
         }
         Err(error) => {
             return err!(
-                HttpError::Oauth(AuthError::Mongo(error)),
+                HttpError::Oauth(error.into()),
                 StatusCode::INTERNAL_SERVER_ERROR
             )
         }
@@ -71,7 +66,10 @@ pub async fn create(user: UserCreateRequest) -> ResponseResult<UserLoginResponse
     ok!(user.into())
 }
 
-pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> {
+#[get("/users")]
+pub async fn login(
+    #[json] user: UserLoginRequest
+) -> ResponseResult<UserLoginResponse> {
     let service = user.service;
 
     let token = match service.fetch_token(&user.oauth_code).await {
@@ -91,7 +89,7 @@ pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> 
         },
         Err(error) => {
             return err!(
-                HttpError::Oauth(AuthError::Mongo(error)),
+                HttpError::Oauth(error.into()),
                 StatusCode::INTERNAL_SERVER_ERROR
             )
         }
@@ -104,10 +102,14 @@ pub async fn login(user: UserLoginRequest) -> ResponseResult<UserLoginResponse> 
     ok!(user.into())
 }
 
-pub async fn fetch(user_id: String, token: String) -> ResponseResult<User> {
+#[get("/users/{id}")]
+pub async fn fetch(
+    #[header = "Authorization"] token: String,
+    id: String,
+) -> ResponseResult<User> {
     with_login!(token);
 
-    let Some(user) = unwrap!(database().await.fetch_user(&user_id).await) else {
+    let Some(user) = unwrap!(database().await.fetch_user(&id).await) else {
         return not_found!("User")
     };
 

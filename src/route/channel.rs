@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::*;
 use warp::{Filter, Rejection, Reply};
 
 use crate::{
@@ -16,30 +17,24 @@ use crate::{
 
 use super::{
     macros::{not_found, ok, unwrap, with_login},
-    with_auth, with_clients, ClientHolder,
+    ClientHolder,
 };
 
 pub fn routes(
     clients: &ClientHolder,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let create = warp::post()
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_clients(clients.clone()))
-        .and_then(create);
+    let create = create(clients.clone());
 
-    let fetch = warp::get()
-        .and(with_auth())
-        .and(warp::path::param())
-        .and_then(fetch);
+    let fetch = fetch();
 
-    warp::path("channels").and(create.or(fetch))
+    create.or(fetch)
 }
 
+#[post("/channels")]
 pub async fn create(
-    token: String,
-    create: ChannelCreate,
-    clients: ClientHolder,
+    #[header = "Authentication"] token: String,
+    #[json] create: ChannelCreate,
+    #[data] clients: ClientHolder,
 ) -> ResponseResult<ChannelResponse> {
     with_login!(token);
 
@@ -59,7 +54,11 @@ pub async fn create(
     ok!(resp)
 }
 
-pub async fn fetch(token: String, id: String) -> ResponseResult<ChannelResponse> {
+#[get("/channels/{id}")]
+pub async fn fetch(
+    #[header = "Authentication"]  token: String,
+    id: String
+) -> ResponseResult<ChannelResponse> {
     with_login!(token);
 
     let Some(channel) = unwrap!(database().await.fetch_channel(id.clone()).await) else {

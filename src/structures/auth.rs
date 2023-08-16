@@ -2,13 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::Display;
 
 use crate::generate_ulid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Schema)]
 pub struct Login {
     pub id: String,
     pub service: Service,
@@ -16,17 +17,17 @@ pub struct Login {
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Schema)]
 pub enum Service {
     #[serde(rename = "github")]
     Github,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Schema)]
 pub enum AuthError {
-    Mongo(mongodb::error::Error),
-    Reqwest(reqwest::Error),
-    Serde(serde_json::Error),
+    Mongo(String),
+    Reqwest(String),
+    Serde(String),
     String(String),
 }
 
@@ -131,15 +132,21 @@ impl Display for Service {
     }
 }
 
+impl From<mongodb::error::Error> for AuthError {
+    fn from(value: mongodb::error::Error) -> Self {
+        Self::Mongo(format!("{:?}", value))
+    }
+}
+
 impl From<reqwest::Error> for AuthError {
     fn from(value: reqwest::Error) -> Self {
-        Self::Reqwest(value)
+        Self::Reqwest(format!("{:?}", value))
     }
 }
 
 impl From<serde_json::Error> for AuthError {
     fn from(value: serde_json::Error) -> Self {
-        Self::Serde(value)
+        Self::Serde(format!("{:?}", value))
     }
 }
 

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::*;
 use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
 use crate::{
@@ -16,40 +17,20 @@ use crate::{
 
 use super::{
     macros::{err, not_found, ok, unwrap, with_login},
-    with_auth, with_clients, ClientHolder, HttpError,
+    ClientHolder, HttpError,
 };
 
 pub fn routes(
     clients: &ClientHolder,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let create = warp::post()
-        .and(with_auth())
-        .and(warp::body::json())
-        .and(with_clients(clients.clone()))
-        .and_then(create);
-
-    let fetch_single = warp::get()
-        .and(with_auth())
-        .and(warp::path::param())
-        .and_then(fetch_single);
-
-    let fetch_before = warp::get()
-        .and(with_auth())
-        .and(warp::query())
-        .and_then(fetch_before);
-
-    let fetch_after = warp::get()
-        .and(with_auth())
-        .and(warp::query())
-        .and_then(fetch_after);
-
-    warp::path("messages").and(create.or(fetch_single).or(fetch_before).or(fetch_after))
+    create(clients.clone()).or(fetch_single()).or(fetch_before()).or(fetch_after())
 }
 
+#[post("/messages")]
 pub async fn create(
-    token: String,
-    create: MessageCreate,
-    clients: ClientHolder,
+    #[header = "Authentication"] token: String,
+    #[json] create: MessageCreate,
+    #[data] clients: ClientHolder,
 ) -> ResponseResult<MessageResponse> {
     let user = with_login!(token);
 
@@ -84,7 +65,11 @@ pub async fn create(
     ok!(resp)
 }
 
-pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageResponse> {
+#[get("/messages/{id}")]
+pub async fn fetch_single(
+    #[header = "Authentication"] token: String,
+    id: String
+) -> ResponseResult<MessageResponse> {
     let user = with_login!(token);
 
     let Some(message) = unwrap!(database().await.fetch_message(id.clone()).await) else {
@@ -104,9 +89,10 @@ pub async fn fetch_single(token: String, id: String) -> ResponseResult<MessageRe
     ok!(MessageResponse::from_message(message, channel).await)
 }
 
+#[get("/messages")]
 pub async fn fetch_before(
-    token: String,
-    query: MessageFetchBefore,
+    #[header = "Authentication"] token: String,
+    #[filter = "warp::query"] query: MessageFetchBefore,
 ) -> ResponseResult<Vec<MessageResponse>> {
     let user = with_login!(token);
 
@@ -140,9 +126,10 @@ pub async fn fetch_before(
     ok!(out)
 }
 
+#[get("/messages")]
 pub async fn fetch_after(
-    token: String,
-    query: MessageFetchAfter,
+    #[header = "Authentication"] token: String,
+    #[filter = "warp::query"] query: MessageFetchAfter,
 ) -> ResponseResult<Vec<MessageResponse>> {
     let user = with_login!(token);
 

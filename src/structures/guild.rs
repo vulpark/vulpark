@@ -2,25 +2,26 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::{database, generate_ulid};
 
 use super::{restricted_string::RestrictedString, user::User};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct Guild {
     pub id: String,
     pub name: String,
     pub owner_id: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Schema)]
 pub struct GuildCreate {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Schema)]
 pub struct GuildResponse {
     guild: Guild,
     owner: User,
