@@ -11,6 +11,7 @@ mod user;
 
 use reqwest::StatusCode;
 use rweb::openapi;
+use std::net::Ipv4Addr;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 use warp::reject::{MethodNotAllowed, MissingHeader};
@@ -37,7 +38,7 @@ pub async fn init() {
             .with(warp::cors().allow_any_origin())
     });
 
-    warp::serve(filter).run(([127, 0, 0, 1], 8000)).await;
+    warp::serve(filter).run((Ipv4Addr::UNSPECIFIED, 8000)).await;
 }
 
 async fn recover(rejection: Rejection) -> ResponseResult<()> {
