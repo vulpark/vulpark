@@ -17,7 +17,11 @@ COPY . .
 
 RUN cargo build --release
 
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS release
+
+RUN apt update && apt install -y \
+    openssl \
+    && rm /var/lib/apt/lists/* -rf
 
 WORKDIR /app
 
