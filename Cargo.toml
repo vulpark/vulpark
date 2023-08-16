@@ -7,27 +7,30 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = { version = "0.3", default-features=false}
-serde_json = "1.0.96"
+chrono = "0.4.26"
+dotenv = "0.15.0"
+mongodb = "2.6.1"
+once_cell = "1.18.0"
+rand = "0.8.5"
+regex = "1.9.3"
+reqwest = "0.11.18"
+serde_json = "1.0.105"
+tokio-stream = "0.1.14"
 ulid = "1.0.0"
 warp = "0.3.5"
-tokio-stream = "0.1.6"
-chrono = "0.4.26"
-mongodb = "2.5.0"
-once_cell = "1.17.2"
-rand = "0.8.5"
-regex = "1.8.3"
-dotenv = "0.15.0"
-reqwest = "0.11.18"
+
+[dependencies.futures]
+version = "0.3.28"
+default_features = false
 
 [dependencies.rweb]
 version = "0.15.0"
 features = ["openapi"]
 
 [dependencies.serde]
-version = "1.0.163"
+version = "1.0.183"
 features = ["derive"]
 
 [dependencies.tokio]
-version = "1.28.2"
+version = "1.31.0"
 features = ["full"]

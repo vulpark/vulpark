@@ -73,7 +73,7 @@ where
 }
 
 impl <T: Entity + Serialize> ResponseEntity for Response<T> {
-    fn describe_responses(comp_d: &mut rweb::openapi::ComponentDescriptor) -> Responses {
+    fn describe_responses(_comp_d: &mut rweb::openapi::ComponentDescriptor) -> Responses {
         let resp = Responses::new();
         resp
     }
