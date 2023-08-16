@@ -1,4 +1,4 @@
-FROM rust:1.71.1-alpine AS build
+FROM rustlang/rust:nightly-alpine AS build
 
 # add COMMIT_SHA as compile time env var
 ARG COMMIT_SHA
