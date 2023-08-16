@@ -6,6 +6,7 @@ ENV COMMIT_SHA=${COMMIT_SHA:-development}
 
 RUN apt update && apt install -y \
     ca-certificates \
+    pkg-config \
     && rm /var/lib/apt/lists/* -rf
 
 WORKDIR /app
