@@ -1,10 +1,12 @@
-FROM rustlang/rust:nightly-alpine AS build
+FROM rustlang/rust:nightly-bookworm-slim AS build
 
 # add COMMIT_SHA as compile time env var
 ARG COMMIT_SHA
 ENV COMMIT_SHA=${COMMIT_SHA:-development}
 
-RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+RUN apt update && apt install -y \
+    ca-certificates \
+    && rm /var/lib/apt/lists/* -rf
 
 WORKDIR /app
 
@@ -12,7 +14,7 @@ COPY . .
 
 RUN cargo build --release
 
-FROM alpine
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
