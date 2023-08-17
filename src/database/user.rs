@@ -58,11 +58,18 @@ impl Database {
             }
         }
 
+        let token = loop {
+            let token = generate_random_u128();
+            let Some(_) = self.fetch_user_token(&token).await? else {
+                break token;
+            };
+        };
+
         let user = DatabaseUser {
             _id: generate_ulid(),
             username: username.to_string(),
             discriminator,
-            token: generate_random_u128(),
+            token,
             guilds: vec![],
             gateway_connected: false,
         };
