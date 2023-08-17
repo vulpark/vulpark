@@ -6,9 +6,8 @@ use mongodb::bson::doc;
 use mongodb::error::Result;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use ulid::Ulid;
 
-use crate::structures::user::User;
+use crate::{structures::user::User, generate_ulid, generate_random_u128};
 
 use super::{
     macros::{basic_fetch, basic_update, eq, id},
@@ -60,10 +59,10 @@ impl Database {
         }
 
         let user = DatabaseUser {
-            _id: Ulid::new().to_string(),
+            _id: generate_ulid(),
             username: username.to_string(),
             discriminator,
-            token: Ulid::new().to_string(),
+            token: generate_random_u128(),
             guilds: vec![],
             gateway_connected: false,
         };

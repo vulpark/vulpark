@@ -12,8 +12,10 @@
 )]
 #![allow(clippy::module_name_repetitions, clippy::unused_async)]
 
+use base64::Engine;
 use database::Database;
 use dotenv::dotenv;
+use rand::Rng;
 use std::sync::OnceLock;
 use ulid::Ulid;
 
@@ -38,6 +40,11 @@ static DATABASE: OnceLock<Database> = OnceLock::new();
 #[must_use]
 pub fn generate_ulid() -> String {
     Ulid::new().to_string()
+}
+
+pub fn generate_random_u128() -> String {
+    let mut rng = rand::thread_rng();
+    base64::engine::general_purpose::URL_SAFE.encode(rng.gen::<[u8; 16]>())
 }
 
 /// # Panics
