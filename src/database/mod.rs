@@ -35,9 +35,9 @@ macro_rules! db {
 
         impl Database {
             pub async fn create() -> Result<Self> {
-                let client_options = ClientOptions::parse("mongodb://localhost:27017").await?;
+                let client_options = ClientOptions::parse(std::env::var("DB_URL").expect("No DB_URL found in environment!")).await?;
                 let client = Client::with_options(client_options)?;
-                let db = client.database("vulpark");
+                let db = client.default_database().expect("No database specified in connection string");
                 Ok(Self {
                     $(
                         $i: db.collection(stringify!($i)),
